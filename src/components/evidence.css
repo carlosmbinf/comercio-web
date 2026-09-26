@@ -1,0 +1,20 @@
+.evidence-card { display:flex; flex-direction:column; gap:14px; padding:18px; border:1px solid rgba(249,115,22,.18); border-radius:21px !important; background:linear-gradient(150deg,rgba(249,115,22,.055),var(--mui-palette-background-paper,#fff) 44%) !important; }
+.evidence-card-heading { display:flex; align-items:center; gap:12px; }
+.evidence-heading-icon { display:grid; place-items:center; width:43px; height:43px; flex:0 0 auto; border-radius:14px; color:#ed7c19; background:rgba(249,115,22,.13); }
+.evidence-instructions { border-radius:14px !important; }
+.evidence-amount-card { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:15px; border:1px solid var(--line-soft); border-radius:17px; background:var(--mui-palette-background-paper,#fff); }
+.evidence-method-chip { font-weight:800 !important; }
+.evidence-payment-data { padding:15px; border:1px solid var(--line-soft); border-radius:17px !important; background:var(--mui-palette-background-paper,#fff) !important; }
+.evidence-payment-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.evidence-account-value { overflow-wrap:anywhere; margin-top:12px !important; padding:12px; border-radius:12px; color:var(--mui-palette-text-primary); background:var(--surface-soft); font-weight:700 !important; white-space:pre-wrap; }
+.evidence-loading { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.evidence-upload-section { display:flex; flex-direction:column; align-items:flex-start; gap:11px; }
+.evidence-file-input { display:none; }
+.evidence-selected-file { display:flex; align-items:center; gap:12px; width:100%; padding:9px; border:1px solid var(--line-soft); border-radius:15px !important; background:var(--mui-palette-background-paper,#fff) !important; }
+.evidence-selected-file img { width:58px; height:58px; flex:0 0 auto; border-radius:11px; object-fit:cover; }
+.evidence-history { display:flex; flex-direction:column; gap:10px; }
+.evidence-history-item { display:flex; align-items:flex-start; gap:11px; padding:10px; border:1px solid var(--line-soft); border-radius:15px !important; background:var(--mui-palette-background-paper,#fff) !important; }
+.evidence-history-item > img { width:68px; height:68px; flex:0 0 auto; border-radius:11px; object-fit:cover; }
+.evidence-status-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:6px; }
+.evidence-analysis { display:block; margin-top:6px !important; line-height:1.5 !important; }
+@media(max-width:540px) { .evidence-card { padding:13px; } .evidence-amount-card { align-items:flex-start; flex-direction:column; } .evidence-history-item { flex-wrap:wrap; } }
