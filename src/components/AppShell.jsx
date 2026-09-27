@@ -25,9 +25,18 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
   const [cartOpen, setCartOpen] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const storeLabel = COMERCIO_NOMBRE || storefront.stores?.[0]?.title || 'VIDKAR · COMERCIO';
+  const configuredStoreName = COMERCIO_NOMBRE || storefront.stores?.[0]?.title || storefront.stores?.[0]?.name || '';
+  const storeLabel = configuredStoreName || 'VIDKAR · COMERCIO';
   const userLabel = displayName(user);
   const cartCount = cart?.items?.length || 0;
+
+  React.useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = configuredStoreName
+        ? `Comercio · ${configuredStoreName}`
+        : 'Comercio · VIDKAR';
+    }
+  }, [configuredStoreName]);
 
   return (
     <Box className={`app-root ${mode === 'dark' ? 'mode-dark' : 'mode-light'}`}>
