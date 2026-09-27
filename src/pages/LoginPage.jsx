@@ -152,8 +152,9 @@ export function LoginPage() {
                 }}
               >
                 <GoogleOAuthProvider clientId={googleConfig.clientId}>
-                  <GoogleLogin
+                  <GoogleLogin 
                     key={googleConfig.nonce}
+                    containerProps={{ style: { colorScheme: 'normal' } }}
                     nonce={googleConfig.nonce}
                     onSuccess={handleGoogleSuccess}
                     onError={() => setError('No se pudo abrir el acceso de Google. Inténtalo de nuevo.')}

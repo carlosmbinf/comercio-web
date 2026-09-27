@@ -140,12 +140,14 @@ a { color: inherit; text-decoration: none; }
   width: fit-content;
   max-width: 100%;
   margin-inline: auto;
+  color-scheme: normal;
   border-radius: 999px;
   outline: 3px solid transparent;
   outline-offset: 3px;
   filter: drop-shadow(0 8px 18px rgba(66,133,244,.16));
   transition: filter 180ms ease, transform 180ms ease, outline-color 180ms ease;
 }
+.login-google-button iframe { color-scheme: normal; }
 .login-google-button:hover:not([aria-busy='true']) {
   filter: drop-shadow(0 11px 22px rgba(66,133,244,.24));
   transform: translateY(-1px);
