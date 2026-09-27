@@ -19,7 +19,7 @@ export function LoginPage() {
   const [loadingGoogle, setLoadingGoogle] = React.useState(false);
   const [googleConfig, setGoogleConfig] = React.useState(null);
   const [googleButtonWidth] = React.useState(() => (
-    typeof window === 'undefined' ? 320 : Math.max(200, Math.min(320, window.innerWidth - 96))
+    typeof window === 'undefined' ? 384 : Math.max(200, Math.min(384, window.innerWidth - 96))
   ));
   const [error, setError] = React.useState('');
 
@@ -142,6 +142,8 @@ export function LoginPage() {
                 <Divider sx={{ flex: 1 }} />
               </Box>
               <Box
+                className="login-google-button"
+                aria-busy={loading || loadingGoogle}
                 sx={{
                   display: 'flex',
                   justifyContent: 'center',
@@ -156,10 +158,10 @@ export function LoginPage() {
                     onSuccess={handleGoogleSuccess}
                     onError={() => setError('No se pudo abrir el acceso de Google. Inténtalo de nuevo.')}
                     ux_mode="popup"
-                    shape="rectangular"
+                    shape="pill"
                     size="large"
                     text="continue_with"
-                    theme="outline"
+                    theme="filled_blue"
                     width={googleButtonWidth}
                   />
                 </GoogleOAuthProvider>

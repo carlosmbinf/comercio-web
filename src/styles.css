@@ -136,6 +136,23 @@ a { color: inherit; text-decoration: none; }
 .login-card-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 24px; }
 .login-icon { width: 46px; height: 46px; display: grid; place-items: center; margin-bottom: 8px; border-radius: 15px; color: var(--accent); background: var(--accent-soft); }
 .login-footnote { display: block; margin: 20px 0 10px; text-align: center; line-height: 1.6; }
+.login-google-button {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  border-radius: 999px;
+  outline: 3px solid transparent;
+  outline-offset: 3px;
+  filter: drop-shadow(0 8px 18px rgba(66,133,244,.16));
+  transition: filter 180ms ease, transform 180ms ease, outline-color 180ms ease;
+}
+.login-google-button:hover:not([aria-busy='true']) {
+  filter: drop-shadow(0 11px 22px rgba(66,133,244,.24));
+  transform: translateY(-1px);
+}
+.login-google-button:focus-within { outline-color: rgba(117,73,223,.3); }
+.login-google-button:active:not([aria-busy='true']) { transform: translateY(0); }
+.login-google-button[aria-busy='true'] { filter: none; transform: none; }
 
 .profile-card { border: 1px solid var(--line-soft); border-radius: 26px !important; box-shadow: var(--shadow-soft); }
 .profile-card .MuiCardContent-root { padding: clamp(20px, 4vw, 36px); }
