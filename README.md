@@ -24,9 +24,17 @@ En el checkout, la dirección seleccionada completa la calle, número y punto de
 
 El `.env` local no se versiona. Para producción usa `wss://` y HTTPS.
 
+## Modo empresa
+
+- La opción aparece únicamente cuando inicia sesión la cuenta propietaria resuelta desde `VITE_COMERCIO_EMPRESA_ID`. Entrar directamente a `/empresa` aplica el mismo control.
+- Para operar, esa cuenta debe tener rol `EMPRESA`, aceptar los términos si corresponde y no estar bloqueada. La web no exige `modoEmpresa=true`: ese flag sigue controlando la navegación de la app móvil, no el acceso al panel web. El servidor vuelve a validar identidad, rol, términos, estado y propiedad; la visibilidad de la opción no es la autorización.
+- El panel incluye preparación de pedidos, productos, tiendas/sucursales y categorías. La ubicación es obligatoria al crear o editar una tienda según el schema actual.
+- Para gestión se usan publicaciones privadas que filtran y proyectan en el servidor: `comercio.tiendasEmpresa`, `comercio.productosEmpresa` y `comercio.pedidosPreparacion`. Las ventas compartidas entre tiendas conservan la transición global de la app; las órdenes con artículos de otros tipos no se pueden avanzar desde este panel.
+- La tienda pública conserva las publicaciones `tiendas` y `productosComercio` porque su catálogo debe ser visible para compradores. Las publicaciones históricas genéricas, en particular `ventasRecharge`, todavía aceptan selectores amplios y requieren un endurecimiento transversal separado; el nuevo panel no las usa para su cola operativa.
+
 ## Contratos Meteor reutilizados
 
-- Publicaciones existentes: `tiendas`, `productosComercio`, `carrito`, `ordenes`, `ventasRecharge`, `user` y `evidenciasVentasEfectivoRecharge`.
-- Métodos existentes de COMERCIO, autenticación, pago y comprobantes: `addAlCarrito`, `eliminarElementoCarrito`, `carrito.actualizarUbicacion`, `comercio.calcularCostosEntrega`, `paypal.totalAPagar`, `mercadopago.totalAPagar`, `efectivo.totalAPagar`, `creandoOrden`, `mercadopago.createOrder`, `efectivo.createOrder`, `generarVentaEfectivo`, `cancelarOrdenesPaypalIncompletas`, `moneda.convertir`, `property.getVariasPropertys`, `property.getValor`, `findImgbyProduct`, `calculoDeComisionesPorTiendaFinanl`, `archivos.upload` y `archivos.delete`.
+- Publicaciones de escaparate/compra: `tiendas`, `productosComercio`, `carrito`, `ordenes`, `ventasRecharge`, `user` y `evidenciasVentasEfectivoRecharge`. Para el panel de empresa se usan además `comercio.tiendasEmpresa`, `comercio.productosEmpresa` y `comercio.pedidosPreparacion`.
+- Métodos reutilizados de COMERCIO, modo empresa, autenticación, pago y comprobantes: `users.aceptarTerminosEmpresa`, `users.toggleModoEmpresa`, `addEmpresa`, `tiendas.update`, `removeTienda`, `addProducto`, `comercio.editProducto`, `removeProducto`, `comercio.uploadProductImage`, `comercio.deleteProductImage`, `comercio.pedidos.avanzar`, `comercio.pedidos.desasignarCadete`, `comercio.categorias.crear`, `comercio.categorias.actualizar`, `addAlCarrito`, `eliminarElementoCarrito`, `carrito.actualizarUbicacion`, `comercio.calcularCostosEntrega`, `paypal.totalAPagar`, `mercadopago.totalAPagar`, `efectivo.totalAPagar`, `creandoOrden`, `mercadopago.createOrder`, `efectivo.createOrder`, `generarVentaEfectivo`, `cancelarOrdenesPaypalIncompletas`, `moneda.convertir`, `property.getVariasPropertys`, `property.getValor`, `findImgbyProduct`, `calculoDeComisionesPorTiendaFinanl`, `archivos.upload` y `archivos.delete`.
 
-Las suscripciones del catálogo y del historial incluyen el ID de empresa/tiendas como filtro de cliente. Las publicaciones del backend aceptan selectores del cliente sin autorizar el ámbito de empresa; por ello esta app limita lo que consulta y muestra, pero no puede convertir ese filtro en una barrera de seguridad del servidor sin cambiar `react-download`.
+El escaparate limita el catálogo al comercio configurado para presentar una única tienda empresarial. Ese filtro público no otorga permisos de gestión: las escrituras y publicaciones privadas del panel vuelven a validar ownership en Meteor.

@@ -22,7 +22,7 @@ function Recenter({ point }) {
 const validPoint = (point) =>
   point && Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude));
 
-export default function MapPicker({ center, onChange, point }) {
+export default function MapPicker({ center, emptyHint = 'Toca el mapa para marcar el lugar de entrega.', onChange, point }) {
   const initialPoint = validPoint(point)
     ? point
     : validPoint(center)
@@ -51,7 +51,7 @@ export default function MapPicker({ center, onChange, point }) {
         <Typography color="text.secondary" variant="caption">
           {displayedPoint
             ? 'Punto exacto seleccionado · puedes ajustarlo tocando el mapa.'
-            : 'Toca el mapa para marcar el lugar de entrega.'}
+            : emptyHint}
         </Typography>
       </Box>
     </Box>

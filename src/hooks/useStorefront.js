@@ -62,7 +62,8 @@ export function useStorefront() {
       fields: STORE_FIELDS,
       sort: { title: 1 },
     }).fetch();
-    const ownerId = resolveCompanyOwnerId(seedStores, COMERCIO_EMPRESA_ID);
+    const ownerId = resolveCompanyOwnerId(seedStores, COMERCIO_EMPRESA_ID) ||
+      (seedHandle.ready() ? COMERCIO_EMPRESA_ID : '');
     const storeSelector = ownerId ? { idUser: ownerId } : seedSelector;
     const storesHandle = ownerId && ownerId !== COMERCIO_EMPRESA_ID
       ? Meteor.subscribe('tiendas', storeSelector, { fields: STORE_FIELDS, sort: { title: 1 } })

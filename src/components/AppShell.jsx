@@ -8,9 +8,11 @@ import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
+import BusinessCenterRoundedIcon from '@mui/icons-material/BusinessCenterRounded';
 import CheckoutWizard from './CheckoutWizard';
 
 import { COMERCIO_NOMBRE } from '../config';
+import { isConfiguredCommerceOwner } from '../domain/empresa';
 
 const NAV_ITEMS = [
   { label: 'Tienda', to: '/', icon: <StorefrontRoundedIcon fontSize="small" /> },
@@ -29,6 +31,9 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
   const storeLabel = configuredStoreName || 'VIDKAR · COMERCIO';
   const userLabel = displayName(user);
   const cartCount = cart?.items?.length || 0;
+  const navItems = isConfiguredCommerceOwner(user, storefront.companyId)
+    ? [...NAV_ITEMS, { label: 'Modo empresa', to: '/empresa', icon: <BusinessCenterRoundedIcon fontSize="small" /> }]
+    : NAV_ITEMS;
 
   React.useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -51,7 +56,7 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
           </RouterLink>
 
           <Box className="desktop-nav" component="nav" aria-label="Navegación principal">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <Button
                 className="nav-link"
                 component={NavLink}
@@ -111,7 +116,7 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
       </div>
 
       <Box className="mobile-nav" component="nav" aria-label="Navegación móvil">
-        {[...NAV_ITEMS, { label: 'Perfil', to: user ? '/perfil' : '/login', icon: <PersonOutlineRoundedIcon fontSize="small" /> }].map((item) => (
+        {[...navItems, { label: 'Perfil', to: user ? '/perfil' : '/login', icon: <PersonOutlineRoundedIcon fontSize="small" /> }].map((item) => (
           <Button
             aria-current={location.pathname === item.to ? 'page' : undefined}
             className={location.pathname === item.to ? 'mobile-nav-item active' : 'mobile-nav-item'}

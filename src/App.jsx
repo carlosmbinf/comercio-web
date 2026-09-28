@@ -12,6 +12,7 @@ import { LoginPage } from './pages/LoginPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { StorePage } from './pages/StorePage';
+import { EmpresaPage } from './pages/EmpresaPage';
 
 function ConnectionScreen({ mode, onRetry, error }) {
   return (
@@ -55,11 +56,16 @@ function StoreLayout({ mode, onToggleMode }) {
       'profile.name': 1,
       'profile.firstName': 1,
       'profile.lastName': 1,
+      'profile.roleComercio': 1,
       picture: 1,
       movil: 1,
       mobile: 1,
       phone: 1,
       telefono: 1,
+      empresaBloqueada: 1,
+      empresaTerminosCondicionesAcepted: 1,
+      modoEmpresa: 1,
+      permiteEmpresa: 1,
       permitirPagoEfectivoCUP: 1,
       categoriasComercioInicio: 1,
     };
@@ -131,6 +137,7 @@ export default function App({ mode, onToggleMode }) {
         <Route path="login" element={<LoginPage />} />
         <Route path="pedidos" element={<OrdersPage />} />
         <Route path="perfil" element={<ProfilePage />} />
+        <Route path="empresa" element={<EmpresaPage />} />
         <Route path="*" element={<Navigate replace to="/" />} />
       </Route>
     </Routes>

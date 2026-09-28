@@ -7,6 +7,7 @@ import { callMeteor } from '../meteor/client';
 import { METEOR_HTTP_URL } from '../config';
 import { formatMoney } from '../domain/commerce';
 import AddProductDialog from './AddProductDialog';
+import ProductImageCarousel from './ProductImageCarousel';
 
 function normalizeImageUrl(value) {
   if (typeof value !== 'string' || !value.trim()) return '';
@@ -20,10 +21,10 @@ function normalizeImageUrl(value) {
 }
 
 export default function ProductCard({ cartBlocked, cartReady, onAdd, onNotify, product, store }) {
-  const [imageUrl, setImageUrl] = React.useState(() => normalizeImageUrl(
-    product?.imageUrl || product?.urlImagen || product?.imagenUrl || '',
-  ));
-  const [imageFailed, setImageFailed] = React.useState(false);
+  const [images, setImages] = React.useState(() => {
+    const legacyUrl = normalizeImageUrl(product?.imageUrl || product?.urlImagen || product?.imagenUrl || '');
+    return legacyUrl ? [{ id: `legacy-${product?._id}`, url: legacyUrl }] : [];
+  });
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
   const isMadeToOrder = Boolean(product?.productoDeElaboracion);
@@ -40,18 +41,36 @@ export default function ProductCard({ cartBlocked, cartReady, onAdd, onNotify, p
 
   React.useEffect(() => {
     let active = true;
-    setImageFailed(false);
+    setImages([]);
 
-    if (imageUrl) return () => { active = false; };
+    const loadImages = async () => {
+      try {
+        const result = await callMeteor('comercio.getProductImages', product._id);
+        const gallery = (Array.isArray(result) ? result : [])
+          .map((image) => ({ ...image, url: normalizeImageUrl(image?.url) }))
+          .filter((image) => image.url);
+        if (active && gallery.length) {
+          setImages(gallery);
+          return;
+        }
+      } catch (_error) {
+        // Compatibilidad temporal con servidores que solo ofrecen la API singular.
+      }
 
-    callMeteor('findImgbyProduct', product._id)
-      .then((url) => {
-        if (active && url) setImageUrl(normalizeImageUrl(url));
-      })
-      .catch(() => null);
+      try {
+        const legacyUrl = normalizeImageUrl(await callMeteor('findImgbyProduct', product._id));
+        if (active && legacyUrl) setImages([{ id: `legacy-${product._id}`, url: legacyUrl }]);
+      } catch (_error) {
+        if (active) setImages([]);
+      }
+    };
 
-    return () => { active = false; };
-  }, [imageUrl, product._id]);
+    loadImages();
+
+    return () => {
+      active = false;
+    };
+  }, [product?._id, product?.imageUrl, product?.urlImagen, product?.imagenUrl]);
 
   const handleAdd = async (quantity, comment) => {
     setAdding(true);
@@ -75,19 +94,16 @@ export default function ProductCard({ cartBlocked, cartReady, onAdd, onNotify, p
           onClick={() => setDialogOpen(true)}
         >
           <Box className="product-media">
-            {imageUrl && !imageFailed ? (
-              <img
-                alt={productName}
-                className="product-image"
-                loading="lazy"
-                onError={() => setImageFailed(true)}
-                src={imageUrl}
-              />
-            ) : (
-              <Box className="product-image-fallback">
-                {product?.name ? <span>{String(product.name).trim().slice(0, 1).toUpperCase()}</span> : <BrokenImageOutlinedIcon />}
-              </Box>
-            )}
+            <ProductImageCarousel
+              alt={productName}
+              fallback={(
+                <Box className="product-image-fallback">
+                  {product?.name ? <span>{String(product.name).trim().slice(0, 1).toUpperCase()}</span> : <BrokenImageOutlinedIcon />}
+                </Box>
+              )}
+              imageClassName="product-image"
+              images={images}
+            />
             {isMadeToOrder ? (
               <Chip className="product-ribbon" icon={<LocalFloristOutlinedIcon />} label="Por encargo" size="small" />
             ) : stock <= 5 ? (
@@ -134,7 +150,7 @@ export default function ProductCard({ cartBlocked, cartReady, onAdd, onNotify, p
         adding={adding}
         cartBlocked={cartBlocked}
         cartReady={cartReady}
-        imageUrl={imageUrl && !imageFailed ? imageUrl : ''}
+        images={images}
         onAdd={handleAdd}
         onClose={() => setDialogOpen(false)}
         open={dialogOpen}

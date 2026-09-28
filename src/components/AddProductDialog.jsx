@@ -6,12 +6,13 @@ import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { formatMoney } from '../domain/commerce';
+import ProductImageCarousel from './ProductImageCarousel';
 
 export default function AddProductDialog({
   adding,
   cartBlocked = false,
   cartReady = true,
-  imageUrl,
+  images = [],
   onAdd,
   onClose,
   open,
@@ -93,13 +94,6 @@ export default function AddProductDialog({
     >
       <DialogTitle className="product-dialog-title" component="div">
         <Box className="product-dialog-heading">
-          <Box aria-hidden="true" className="product-dialog-image">
-            {imageUrl ? (
-              <img alt="" loading="lazy" src={imageUrl} />
-            ) : (
-              <span>{productName.trim().slice(0, 1).toUpperCase()}</span>
-            )}
-          </Box>
           <Box className="product-dialog-heading-copy">
             <Typography className="product-dialog-store" noWrap variant="overline">
               {store?.title || store?.name || 'Tienda VIDKAR'}
@@ -124,6 +118,13 @@ export default function AddProductDialog({
         {auth?.userId && !cartReady ? (
           <Alert severity="info">Sincronizando el carrito…</Alert>
         ) : null}
+
+        <ProductImageCarousel
+          alt={productName}
+          className="product-dialog-gallery"
+          fallback={<span className="product-dialog-gallery-fallback">{productName.trim().slice(0, 1).toUpperCase()}</span>}
+          images={images}
+        />
 
         <Box className="product-detail-description">
           <Box className="product-detail-heading">

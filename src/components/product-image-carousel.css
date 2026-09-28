@@ -1,0 +1,85 @@
+.product-image-carousel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.48);
+}
+.product-image-carousel-track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.product-image-carousel-track::-webkit-scrollbar { display: none; }
+.product-image-carousel-slide {
+  position: relative;
+  display: grid;
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
+  place-items: center;
+  overflow: hidden;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.product-image-carousel-slide img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.product-image-carousel-arrow.MuiIconButton-root {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  color: #fff;
+  background: rgba(15, 23, 42, .66);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, .24);
+  transform: translateY(-50%);
+}
+.product-image-carousel-arrow.MuiIconButton-root:hover { background: rgba(15, 23, 42, .88); }
+.product-image-carousel-arrow.previous { left: 10px; }
+.product-image-carousel-arrow.next { right: 10px; }
+.product-image-carousel-count {
+  position: absolute;
+  z-index: 2;
+  right: 10px;
+  bottom: 10px;
+  padding: 4px 9px;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(15,23,42,.68);
+  font-size: 11px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(10px);
+}
+.product-image-carousel-empty {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  place-items: center;
+  color: rgba(191, 219, 254, .52);
+  background: rgba(15,23,42,.48);
+}
+.product-image-carousel-empty svg { font-size: 40px; }
+.product-dialog-gallery { height: clamp(170px, 31vh, 250px); min-height: 170px; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--surface-soft); }
+.product-dialog-gallery-fallback { display: grid; width: 72px; height: 72px; place-items: center; border-radius: 22px; color: #fff; background: linear-gradient(140deg,#a482ed,#6942cd); box-shadow: 0 15px 35px rgba(105,66,205,.23); font: 800 30px 'Manrope',sans-serif; }
+
+@media (max-width: 600px) {
+  .product-image-carousel-arrow.MuiIconButton-root { width: 32px; height: 32px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-image-carousel-track { scroll-behavior: auto; }
+}
