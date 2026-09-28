@@ -5,6 +5,7 @@ import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import UploadFileRoundedIcon from '@mui/icons-material/UploadFileRounded';
 import { callMeteor } from '../../meteor/client';
 import ProductImageCarousel from '../ProductImageCarousel';
+import ProductImage from '../ProductImage';
 
 const SUPPORTED_CURRENCIES = ['USD', 'CUP', 'UYU'];
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
@@ -275,7 +276,7 @@ export default function EmpresaProductDialog({
                 <Box className="empresa-product-image-list">
                   {previewImages.map((image, index) => (
                     <Paper className="empresa-product-image-item" elevation={0} key={image.id}>
-                      <img alt={`Imagen ${index + 1}`} src={image.url} />
+                      <ProductImage alt={`Imagen ${index + 1}`} src={image.url} />
                       <Button
                         aria-label={`Quitar imagen ${index + 1}`}
                         disabled={saving}

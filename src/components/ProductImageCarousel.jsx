@@ -3,6 +3,7 @@ import { Box, IconButton } from '@mui/material';
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import BrokenImageOutlinedIcon from '@mui/icons-material/BrokenImageOutlined';
+import ProductImage from './ProductImage';
 import './product-image-carousel.css';
 
 const normalizeImages = (images) => (Array.isArray(images) ? images : [])
@@ -32,7 +33,7 @@ export default function ProductImageCarousel({
     setActiveIndex(0);
     setFailedImages({});
     if (trackRef.current) trackRef.current.scrollLeft = 0;
-  }, [normalizedImages.map((image) => image.id).join('|')]);
+  }, [normalizedImages.map((image) => `${image.id}:${image.url}`).join('|')]);
 
   const moveTo = (index) => {
     const track = trackRef.current;
@@ -66,7 +67,7 @@ export default function ProductImageCarousel({
             {failedImages[image.id] ? (
               <Box className="product-image-carousel-fallback"><BrokenImageOutlinedIcon /></Box>
             ) : (
-              <img
+              <ProductImage
                 alt={index === 0 ? alt : `${alt}, imagen ${index + 1}`}
                 className={imageClassName}
                 loading="lazy"
