@@ -61,6 +61,7 @@ function StoreLayout({ mode, onToggleMode }) {
       phone: 1,
       telefono: 1,
       permitirPagoEfectivoCUP: 1,
+      categoriasComercioInicio: 1,
     };
     const handle = Meteor.subscribe('user', selector, { fields });
     return {

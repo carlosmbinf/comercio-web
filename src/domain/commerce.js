@@ -23,6 +23,11 @@ export const selectCompanyProducts = (products, storeIds) => {
   return products.filter((product) => allowedStores.has(normalizeId(product?.idTienda)));
 };
 
+export const selectStoresWithProducts = (stores, products) => {
+  const populatedIds = new Set((products || []).map((product) => normalizeId(product?.idTienda)).filter(Boolean));
+  return (stores || []).filter((store) => populatedIds.has(normalizeId(store?._id)));
+};
+
 export const selectCompanyCartItems = (items, storeIds) => {
   const allowedStores = new Set((storeIds || []).map(normalizeId).filter(Boolean));
   if (!allowedStores.size || !Array.isArray(items)) return [];

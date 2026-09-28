@@ -10,9 +10,11 @@ import { useOutletContext } from 'react-router-dom';
 
 import { isCompanyConfigured } from '../config';
 import ProductCard from '../components/ProductCard';
+import { selectStoresWithProducts } from '../domain/commerce';
+import { UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories, getPopulatedCategoryRows } from '../domain/categories';
 import './store.css';
 
-const getProductCategory = (product) => String(product?.categoria || product?.category || '').trim();
+const getProductCategory = (product) => String(product?.idCategoria || '').trim();
 
 export function StorePage() {
   const { cart, notify, storefront, user } = useOutletContext();
@@ -28,9 +30,21 @@ export function StorePage() {
     () => new Map(storefront.stores.map((store) => [String(store._id), store])),
     [storefront.stores],
   );
+  const visibleStores = React.useMemo(
+    () => selectStoresWithProducts(storefront.stores, storefront.products),
+    [storefront.stores, storefront.products],
+  );
   const categories = React.useMemo(
-    () => [...new Set(storefront.products.map(getProductCategory).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')),
-    [storefront.products],
+    () => getCatalogCategories(storefront.categories, user?.categoriasComercioInicio).filter((entry) => entry.visible),
+    [storefront.categories, user?.categoriasComercioInicio],
+  );
+  const categoryIds = React.useMemo(
+    () => new Map(categories.map((category) => [category.id, categoryIdsFor(storefront.categories, category.id)])),
+    [categories, storefront.categories],
+  );
+  const categoryRows = React.useMemo(
+    () => getPopulatedCategoryRows(categories, categoryIds, storefront.products),
+    [categories, categoryIds, storefront.products],
   );
   const availableCount = storefront.products.filter(
     (product) => product?.productoDeElaboracion || Number(product?.count || 0) > 0,
@@ -45,7 +59,8 @@ export function StorePage() {
       const store = storesById.get(storeId);
       const matchesStore = selectedStore === 'all' || storeId === selectedStore;
       const matchesAvailability = availability === 'all' || (availability === 'available' && isAvailable) || (availability === 'made' && isMadeToOrder);
-      const matchesCategory = selectedCategory === 'all' || category === selectedCategory;
+      const matchesCategory = selectedCategory === 'all'
+        || (selectedCategory === UNCATEGORIZED_CATEGORY_ID ? !category : categoryIds.get(selectedCategory)?.has(category));
       const matchesSearch = !normalizedSearch || [product?.name, product?.descripcion, store?.title]
         .some((value) => String(value || '').toLocaleLowerCase('es').includes(normalizedSearch));
       return matchesStore && matchesAvailability && matchesCategory && matchesSearch;
@@ -56,10 +71,24 @@ export function StorePage() {
     if (sort === 'name') filtered.sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es'));
     if (sort === 'recommended') filtered.sort((a, b) => new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0));
     return filtered;
-  }, [availability, search, selectedCategory, selectedStore, sort, storesById, storefront.products]);
+  }, [availability, categoryIds, search, selectedCategory, selectedStore, sort, storesById, storefront.products]);
 
-  const storeLabel = storefront.stores.length === 1
-    ? storefront.stores[0]?.title || storefront.stores[0]?.name || 'Tienda VIDKAR'
+  React.useEffect(() => {
+    if (!storefront.loading && selectedCategory !== 'all' && !categoryRows.some((category) => category.id === selectedCategory)) setSelectedCategory('all');
+  }, [categoryRows, selectedCategory, storefront.loading]);
+
+  React.useEffect(() => {
+    if (!storefront.loading && selectedStore !== 'all' && !visibleStores.some((store) => String(store._id) === selectedStore)) setSelectedStore('all');
+  }, [selectedStore, storefront.loading, visibleStores]);
+
+  const openCatalog = (storeId, categoryId) => {
+    setSelectedStore(storeId);
+    setSelectedCategory(categoryId);
+    document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const storeLabel = visibleStores.length === 1
+    ? visibleStores[0]?.title || visibleStores[0]?.name || 'Tienda VIDKAR'
     : 'Compra en las tiendas de tu empresa favorita';
   const isCartBlocked = cart.conflicts.foreignCommerceItems.length > 0 || cart.conflicts.incompatibleItems.length > 0;
 
@@ -83,11 +112,11 @@ export function StorePage() {
         <Box className="store-hero-copy">
           <Chip className="hero-kicker" icon={<CheckCircleOutlineRoundedIcon />} label="TU COMERCIO DE CONFIANZA" size="small" />
           <Typography className="store-hero-title" variant="h1">
-            {storefront.stores.length === 1 ? <>{storeLabel}<br /><span>en tu puerta.</span></> : <>Lo mejor de <span>tu comercio</span>, cerca de ti.</>}
+            {visibleStores.length === 1 ? <>{storeLabel}<br /><span>en tu puerta.</span></> : <>Lo mejor de <span>tu comercio</span>, cerca de ti.</>}
           </Typography>
           <Typography className="store-hero-description" variant="body1">
-            {storefront.stores.length === 1
-              ? storefront.stores[0]?.descripcion || 'Explora el catálogo, elige tus favoritos y sigue tu pedido desde el mismo lugar.'
+            {visibleStores.length === 1
+              ? visibleStores[0]?.descripcion || 'Explora el catálogo, elige tus favoritos y sigue tu pedido desde el mismo lugar.'
               : 'Explora sus tiendas, descubre productos seleccionados y recibe tus compras con seguimiento en tiempo real.'}
           </Typography>
           <Box className="store-hero-actions">
@@ -125,7 +154,7 @@ export function StorePage() {
       <Box className="store-highlights">
         <Paper className="highlight-card" elevation={0}>
           <Box className="highlight-icon violet"><StorefrontRoundedIcon /></Box>
-          <Box><Typography className="highlight-value">{storefront.stores.length}</Typography><Typography color="text.secondary" variant="caption">{storefront.stores.length === 1 ? 'TIENDA' : 'TIENDAS'}</Typography></Box>
+          <Box><Typography className="highlight-value">{visibleStores.length}</Typography><Typography color="text.secondary" variant="caption">{visibleStores.length === 1 ? 'TIENDA' : 'TIENDAS'}</Typography></Box>
         </Paper>
         <Paper className="highlight-card" elevation={0}>
           <Box className="highlight-icon orange"><CheckCircleOutlineRoundedIcon /></Box>
@@ -136,6 +165,46 @@ export function StorePage() {
           <Box><Typography className="highlight-word">A tu manera</Typography><Typography color="text.secondary" variant="caption">SEGUIMIENTO DE PEDIDOS</Typography></Box>
         </Paper>
       </Box>
+
+      {visibleStores.length ? (
+        <section className="storefront-discovery" aria-label="Explorar por tiendas y categorías">
+          <Typography variant="h4">Explora por tiendas</Typography>
+          {visibleStores.map((store) => {
+            const items = storefront.products.filter((product) => String(product.idTienda) === String(store._id));
+            return (
+              <Box className="discovery-section" key={store._id}>
+                <Box className="discovery-heading">
+                  <Typography variant="h6">{store.title || store.name || 'Tienda'}</Typography>
+                  <Button onClick={() => openCatalog(String(store._id), 'all')}>Ver todos ({items.length})</Button>
+                </Box>
+                <Box className="discovery-scroller">
+                  {items.slice(0, 6).map((product) => (
+                    <Box className="discovery-item" key={product._id}>
+                      <ProductCard cartBlocked={isCartBlocked} cartReady={cart.ready} onAdd={cart.addProduct} onNotify={notify} product={product} store={store} />
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            );
+          })}
+          {categoryRows.length ? <Typography variant="h4">Explora por categorías</Typography> : null}
+          {categoryRows.map((category) => (
+            <Box className="discovery-section" key={category.id}>
+              <Box className="discovery-heading">
+                <Typography variant="h6">{category.label}</Typography>
+                <Button onClick={() => openCatalog('all', category.id)}>Ver todos ({category.items.length})</Button>
+              </Box>
+              <Box className="discovery-scroller">
+                {category.items.slice(0, 6).map((product) => (
+                  <Box className="discovery-item" key={product._id}>
+                    <ProductCard cartBlocked={isCartBlocked} cartReady={cart.ready} onAdd={cart.addProduct} onNotify={notify} product={product} store={storesById.get(String(product.idTienda))} />
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ))}
+        </section>
+      ) : null}
 
       <section className="catalog-section" id="catalogo">
         <Box className="catalog-heading">
@@ -193,7 +262,7 @@ export function StorePage() {
         <Box className="filter-row" aria-label="Filtros del catálogo">
           <Box className="filter-scroller">
             <Button className={selectedStore === 'all' ? 'filter-pill selected' : 'filter-pill'} onClick={() => setSelectedStore('all')}>Todas las tiendas</Button>
-            {storefront.stores.map((store) => (
+            {visibleStores.map((store) => (
               <Button
                 className={selectedStore === String(store._id) ? 'filter-pill selected' : 'filter-pill'}
                 key={store._id}
@@ -218,14 +287,14 @@ export function StorePage() {
                 variant={availability === filter.value ? 'filled' : 'outlined'}
               />
             ))}
-            {categories.map((category) => (
+            {categoryRows.map((category) => (
               <Chip
                 clickable
-                color={selectedCategory === category ? 'primary' : 'default'}
-                key={category}
-                label={category}
-                onClick={() => setSelectedCategory((current) => current === category ? 'all' : category)}
-                variant={selectedCategory === category ? 'filled' : 'outlined'}
+                color={selectedCategory === category.id ? 'primary' : 'default'}
+                key={category.id}
+                label={category.label}
+                onClick={() => setSelectedCategory((current) => current === category.id ? 'all' : category.id)}
+                variant={selectedCategory === category.id ? 'filled' : 'outlined'}
               />
             ))}
           </Box>

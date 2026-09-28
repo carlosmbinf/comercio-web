@@ -1,7 +1,8 @@
 import { Meteor } from '../meteor/client';
-import { ProductosComercioCollection, TiendasComercioCollection } from '../meteor/collections';
+import { CategoriasComercioCollection, ProductosComercioCollection, TiendasComercioCollection } from '../meteor/collections';
 import { COMERCIO_EMPRESA_ID, isCompanyConfigured } from '../config';
 import { resolveCompanyOwnerId, selectCompanyProducts, selectCompanyStores } from '../domain/commerce';
+import { getVisibleCatalogProducts } from '../domain/categories';
 
 const STORE_FIELDS = {
   _id: 1,
@@ -27,6 +28,7 @@ const PRODUCT_FIELDS = {
   createdAt: 1,
   categoria: 1,
   category: 1,
+  idCategoria: 1,
 };
 
 export function useStorefront() {
@@ -34,6 +36,7 @@ export function useStorefront() {
     if (!isCompanyConfigured) {
       return {
         companyId: '',
+        categories: [],
         loading: false,
         products: [],
         stores: [],
@@ -51,6 +54,10 @@ export function useStorefront() {
       fields: STORE_FIELDS,
       sort: { title: 1 },
     });
+    const categoriesHandle = Meteor.subscribe('categoriasComercioCatalogo');
+    const categories = CategoriasComercioCollection.find({}, {
+      fields: { _id: 1, nombre: 1, idCategoriaHeredada: 1, visibleEnInicio: 1, ordenInicio: 1 },
+    }).fetch();
     const seedStores = TiendasComercioCollection.find(seedSelector, {
       fields: STORE_FIELDS,
       sort: { title: 1 },
@@ -72,19 +79,20 @@ export function useStorefront() {
           sort: { name: 1 },
         })
       : null;
-    const products = storeIds.length
-      ? selectCompanyProducts(
+    const products = storeIds.length && categoriesHandle.ready()
+      ? getVisibleCatalogProducts(selectCompanyProducts(
           ProductosComercioCollection.find(productSelector, {
             fields: PRODUCT_FIELDS,
             sort: { name: 1 },
           }).fetch(),
           storeIds,
-        )
+        ), categories)
       : [];
 
     return {
+      categories,
       companyId: ownerId,
-      loading: !seedHandle.ready() || !storesHandle.ready() || Boolean(productsHandle && !productsHandle.ready()),
+      loading: !categoriesHandle.ready() || !seedHandle.ready() || !storesHandle.ready() || Boolean(productsHandle && !productsHandle.ready()),
       products,
       stores,
       storeIds,
