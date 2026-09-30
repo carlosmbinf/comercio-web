@@ -37,6 +37,7 @@ import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import PaymentsOutlinedIcon from '@mui/icons-material/PaymentsOutlined';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import { formatMoney } from '../domain/commerce';
+import { getCommerceDisplayName } from '../config';
 import { callMeteor, Meteor } from '../meteor/client';
 import { OrdenesCollection } from '../meteor/collections';
 import GoogleAddressAutocomplete from './GoogleAddressAutocomplete';
@@ -82,12 +83,12 @@ const parseCashCurrencies = (result) => {
 
 const paymentTerms = {
   paypal: [
-    'El pago se realizará en la pasarela segura de PayPal; VIDKAR no almacena datos bancarios.',
+    'El pago se realizará en la pasarela segura de PayPal; no almacenamos datos bancarios.',
     'El total mostrado incluye la comisión de procesamiento informada por el sistema.',
     'Al continuar, confirmas que revisaste los productos, cantidades y dirección de entrega.',
   ],
   mercadopago: [
-    'MercadoPago procesa los datos del medio de pago de forma segura; VIDKAR no almacena datos de tarjeta.',
+    'MercadoPago procesa los datos del medio de pago de forma segura; no almacenamos datos de tarjeta.',
     'El total mostrado incluye la comisión de procesamiento informada por el sistema.',
     'Al continuar, confirmas que revisaste los productos, cantidades y dirección de entrega.',
   ],
@@ -133,6 +134,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
   const isMobile = useMediaQuery('(max-width:640px)');
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
+  const companyName = getCommerceDisplayName(storefront?.stores);
   const [activeStep, setActiveStep] = React.useState(0);
   const [paymentMethod, setPaymentMethod] = React.useState('');
   const [cashCurrencies, setCashCurrencies] = React.useState([]);
@@ -467,7 +469,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
           'creandoOrden',
           userId,
           total,
-          'Compra de comercio VIDKAR',
+          `Compra en ${companyName}`,
           itemsForCheckout,
           calculatedFees,
           true,
@@ -488,7 +490,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
           itemsForCheckout,
           calculatedFees,
           total,
-          'Compra de comercio VIDKAR',
+          `Compra en ${companyName}`,
           currency,
           true,
         );
@@ -680,7 +682,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
             <Paper className="preparing-card" elevation={0}>
               <Box className="checkout-step-icon"><LockRoundedIcon /></Box>
               <Typography fontWeight={750}>Inicia sesión para comprar</Typography>
-              <Typography color="text.secondary" variant="body2">Tu carrito y tus pedidos se guardan en tu cuenta VIDKAR.</Typography>
+              <Typography color="text.secondary" variant="body2">Tu carrito y tus pedidos se guardan en tu cuenta.</Typography>
               <Button onClick={onLogin} variant="contained">Iniciar sesión</Button>
             </Paper>
           ) : cart.loading ? (
@@ -697,7 +699,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
               {hasCartConflict ? (
                 <Alert severity="warning">
                   {cart.conflicts.foreignCommerceItems.length
-                    ? 'Hay artículos de otra tienda en tu carrito VIDKAR. Para no mezclar empresas, finaliza o retira esa compra desde donde la agregaste.'
+                    ? 'Hay artículos de otra tienda en tu carrito. Para no mezclar empresas, finaliza o retira esa compra desde donde la agregaste.'
                     : 'Hay una compra activa de otro tipo. Finalízala o cancélala antes de continuar.'}
                 </Alert>
               ) : null}
@@ -873,7 +875,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
     >
       <DialogTitle className="checkout-dialog-title">
         <Box>
-          <Typography color="text.secondary" variant="overline">COMPRA SEGURA · VIDKAR</Typography>
+          <Typography color="text.secondary" variant="overline">{`COMPRA SEGURA · ${companyName.toLocaleUpperCase('es')}`}</Typography>
           <Typography variant="h5">{activeStep === 0 ? 'Carrito de compras' : 'Finaliza tu pedido'}</Typography>
         </Box>
         <IconButton aria-label="Cerrar checkout" disabled={preparing || processing || savingLocation} onClick={close}><CloseRoundedIcon /></IconButton>

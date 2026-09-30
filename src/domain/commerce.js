@@ -63,6 +63,14 @@ export const getOrderStatus = (sale) => {
   return 'PREPARANDO';
 };
 
+export const getOrdersViewState = ({ error = false, loading = false, orders = [] } = {}) => {
+  const hasOrders = Array.isArray(orders) && orders.length > 0;
+  if (error && !hasOrders) return 'error';
+  if (loading && !hasOrders) return 'loading';
+  if (hasOrders) return 'history';
+  return 'empty';
+};
+
 export const formatMoney = (value, currency = 'USD') => {
   const amount = Number(value);
   const safeAmount = Number.isFinite(amount) ? amount : 0;

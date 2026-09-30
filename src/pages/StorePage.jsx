@@ -8,7 +8,7 @@ import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import { useOutletContext } from 'react-router-dom';
 
-import { isCompanyConfigured } from '../config';
+import { getCommerceDisplayName, isCompanyConfigured } from '../config';
 import ProductCard from '../components/ProductCard';
 import { selectStoresWithProducts } from '../domain/commerce';
 import { UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories, getPopulatedCategoryRows } from '../domain/categories';
@@ -88,7 +88,7 @@ export function StorePage() {
   };
 
   const storeLabel = visibleStores.length === 1
-    ? visibleStores[0]?.title || visibleStores[0]?.name || 'Tienda VIDKAR'
+    ? visibleStores[0]?.title || visibleStores[0]?.name || getCommerceDisplayName(storefront.stores)
     : 'Compra en las tiendas de tu empresa favorita';
   const isCartBlocked = cart.conflicts.foreignCommerceItems.length > 0 || cart.conflicts.incompatibleItems.length > 0;
 
@@ -121,7 +121,7 @@ export function StorePage() {
           </Typography>
           <Box className="store-hero-actions">
             <Button href="#catalogo" size="large" variant="contained">Explorar productos</Button>
-            <Typography color="text.secondary" variant="body2"><ShieldOutlinedIcon fontSize="small" /> Compra protegida por VIDKAR</Typography>
+            <Typography color="text.secondary" variant="body2"><ShieldOutlinedIcon fontSize="small" /> Compra protegida en {getCommerceDisplayName(storefront.stores)}</Typography>
           </Box>
         </Box>
         <Box aria-hidden="true" className="hero-art">
@@ -147,7 +147,7 @@ export function StorePage() {
 
       {!isCompanyConfigured ? (
         <Alert severity="info">
-          La tienda está lista para conectarse. Falta completar <strong>VITE_COMERCIO_EMPRESA_ID</strong> en <code>comercio-web/.env</code>; hasta entonces no consultamos tiendas ni productos.
+          Esta tienda todavía está en preparación. Vuelve a intentarlo más tarde.
         </Alert>
       ) : null}
 
@@ -234,8 +234,8 @@ export function StorePage() {
             severity="warning"
           >
             {cart.conflicts.foreignCommerceItems.length
-              ? 'Tu carrito VIDKAR tiene productos de otra tienda. Para evitar mezclar empresas, finaliza o retira esa compra desde donde la agregaste antes de continuar aquí.'
-              : 'Tu carrito VIDKAR contiene una compra de otro tipo. Finalízala o cancélala antes de comprar en este comercio.'}
+              ? 'Tu carrito tiene productos de otra tienda. Para evitar mezclar empresas, finaliza o retira esa compra desde donde la agregaste antes de continuar aquí.'
+              : 'Tu carrito contiene una compra de otro tipo. Finalízala o cancélala antes de comprar en este comercio.'}
           </Alert>
         ) : null}
         {cartActionError ? <Alert className="cart-conflict-alert" onClose={() => setCartActionError('')} severity="error">{cartActionError}</Alert> : null}

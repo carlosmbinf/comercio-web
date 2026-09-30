@@ -302,7 +302,7 @@ export default function EvidenceCard({ items, sale }) {
 
       <Paper className="evidence-payment-data" elevation={0}>
         <Box className="evidence-payment-heading">
-          <Box><Typography fontWeight={800} variant="body2">{uploadLabel}</Typography><Typography color="text.secondary" variant="caption">Información configurada por VIDKAR</Typography></Box>
+          <Box><Typography fontWeight={800} variant="body2">{uploadLabel}</Typography><Typography color="text.secondary" variant="caption">Información de pago del comercio</Typography></Box>
           <IconButton aria-label="Copiar datos de pago" disabled={!accountInfo.value} onClick={handleCopy} size="small"><ContentCopyRoundedIcon fontSize="small" /></IconButton>
         </Box>
         {accountInfo.loading ? (

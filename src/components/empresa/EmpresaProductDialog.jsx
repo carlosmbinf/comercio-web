@@ -744,7 +744,7 @@ export default function EmpresaProductDialog({
                   </Typography>
 
                   {/* Dropzone visual moderno */}
-                  <Tooltip arrow describeChild title="Las fotos se guardan en VIDKAR; si el producto está vinculado, se ponen en cola para actualizar el anuncio de Mercado Libre.">
+                  <Tooltip arrow describeChild title="Las fotos se guardan en el catálogo y, si el producto está vinculado, se ponen en cola para actualizar el anuncio de Mercado Libre.">
                     <Box className="empresa-pro-dropzone" onClick={() => fileInputRef.current?.click()}>
                       <UploadFileRoundedIcon color="primary" sx={{ fontSize: 36 }} />
                       <Box>
@@ -761,7 +761,7 @@ export default function EmpresaProductDialog({
                       {previewImages.map((img, i) => (
                         <Paper className="empresa-product-image-item" elevation={0} key={img.id} sx={{ position: 'relative' }}>
                           <ProductImage alt={`Foto ${i + 1}`} src={img.url} />
-                          <Tooltip arrow describeChild title="Quita esta foto de VIDKAR y solicita su actualización en la publicación vinculada.">
+                          <Tooltip arrow describeChild title="Quita esta foto del catálogo y solicita su actualización en la publicación vinculada.">
                             <span>
                               <Button
                                 color="error"
@@ -848,7 +848,7 @@ export default function EmpresaProductDialog({
                     </Paper>
                   ) : (
                     <>
-                      <Tooltip arrow describeChild title="Activa la publicación opcional. VIDKAR enviará el producto a Mercado Libre al guardar; sin activarla, se guarda solo en VIDKAR.">
+                      <Tooltip arrow describeChild title="Activa la publicación opcional. El producto se enviará a Mercado Libre al guardar; si no la activas, solo se guardará en el catálogo.">
                         <FormControlLabel
                           control={
                             <Switch

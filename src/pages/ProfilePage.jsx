@@ -10,7 +10,7 @@ import { logoutFromMeteor } from '../meteor/client';
 
 const getName = (user) =>
   [user?.profile?.firstName, user?.profile?.lastName].filter(Boolean).join(' ').trim() ||
-  user?.profile?.name || user?.username || 'Cliente VIDKAR';
+  user?.profile?.name || user?.username || 'Cliente';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -53,7 +53,7 @@ export function ProfilePage() {
   return (
     <Box className="content-stack">
       <Box className="page-heading">
-        <Typography className="eyebrow" variant="overline">TU CUENTA VIDKAR</Typography>
+        <Typography className="eyebrow" variant="overline">TU CUENTA</Typography>
         <Typography variant="h3">Mi perfil</Typography>
         <Typography color="text.secondary">Tu información personal y datos de contacto.</Typography>
       </Box>

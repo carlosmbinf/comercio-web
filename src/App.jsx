@@ -3,7 +3,7 @@ import { Alert, Box, Button, CircularProgress, Paper, Typography } from '@mui/ma
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 
-import { isMeteorConfigured } from './config';
+import { getCommerceDisplayName, isMeteorConfigured } from './config';
 import AppShell from './components/AppShell';
 import { useCommerceCart } from './hooks/useCommerceCart';
 import { useStorefront } from './hooks/useStorefront';
@@ -14,17 +14,17 @@ import { ProfilePage } from './pages/ProfilePage';
 import { StorePage } from './pages/StorePage';
 import { EmpresaPage } from './pages/EmpresaPage';
 
-function ConnectionScreen({ mode, onRetry, error }) {
+function ConnectionScreen({ companyName, mode, onRetry, error }) {
   return (
     <Box className="connection-screen">
       <Paper className="connection-card" elevation={0}>
         <Box className="brand-mark"><StorefrontRoundedIcon /></Box>
         <Typography color="text.secondary" sx={{ letterSpacing: '.16em', fontWeight: 800 }} variant="overline">
-          VIDKAR · COMERCIO
+          {`${companyName} · COMERCIO`}
         </Typography>
         <Typography sx={{ mt: 1 }} variant="h4">{error ? 'No se pudo conectar' : 'Conectando con tu tienda'}</Typography>
         <Typography color="text.secondary" sx={{ mt: 1.5, maxWidth: 460 }}>
-          {error || 'Estamos estableciendo una conexión segura con el servidor para sincronizar el catálogo y tus compras.'}
+          {error || 'Estamos preparando el catálogo y tus compras. Esto puede tardar unos segundos.'}
         </Typography>
         {error ? (
           <Button onClick={onRetry} sx={{ mt: 3 }} variant="contained">Reintentar conexión</Button>
@@ -108,14 +108,14 @@ export default function App({ mode, onToggleMode }) {
     setConnectionError('');
     try {
       await connectToMeteor();
-    } catch (error) {
-      setConnectionError(error?.reason || error?.message || 'Revisa la URL DDP configurada.');
+    } catch (_error) {
+      setConnectionError('No se pudo conectar con la tienda. Inténtalo de nuevo en unos momentos.');
     }
   }, []);
 
   React.useEffect(() => {
     if (!isMeteorConfigured) {
-      setConnectionError('Configura una URL ws:// o wss:// válida en VITE_METEOR_DDP_URL.');
+      setConnectionError('La conexión de la tienda no está disponible. Contacta con administración.');
       return undefined;
     }
     connect();
@@ -123,11 +123,11 @@ export default function App({ mode, onToggleMode }) {
   }, [connect]);
 
   if (!isMeteorConfigured || connectionError) {
-    return <ConnectionScreen error={connectionError || 'URL DDP no configurada.'} onRetry={connect} mode={mode} />;
+    return <ConnectionScreen companyName={getCommerceDisplayName()} error={connectionError} onRetry={connect} mode={mode} />;
   }
 
   if (!status.connected) {
-    return <ConnectionScreen onRetry={connect} mode={mode} />;
+    return <ConnectionScreen companyName={getCommerceDisplayName()} onRetry={connect} mode={mode} />;
   }
 
   return (

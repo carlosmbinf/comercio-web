@@ -112,7 +112,7 @@ export default function AddProductDialog({
         <Box className="product-dialog-heading">
           <Box className="product-dialog-heading-copy">
             <Typography className="product-dialog-store" noWrap variant="overline">
-              {store?.title || store?.name || 'Tienda VIDKAR'}
+              {store?.title || store?.name || 'Tienda'}
             </Typography>
             <Typography className="product-dialog-name" component="h2" variant="h5">
               {productName}

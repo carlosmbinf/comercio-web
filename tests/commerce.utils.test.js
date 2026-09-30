@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   getCartConflicts,
   getCommerceItems,
+  getOrdersViewState,
   getOrderStatus,
   formatMoney,
   resolveCompanyOwnerId,
@@ -81,6 +82,14 @@ test('filtra detalles de una venta y clasifica estados de compra', () => {
   assert.equal(getOrderStatus(sale), 'EN_RUTA');
   assert.equal(getOrderStatus({ isCancelada: true }), 'CANCELADA');
   assert.equal(getOrderStatus({ isCobrado: false }), 'PENDIENTE_PAGO');
+});
+
+test('distingue carga, fallo y estado vacío del historial de pedidos', () => {
+  assert.equal(getOrdersViewState({ loading: true, orders: [] }), 'loading');
+  assert.equal(getOrdersViewState({ loading: false, orders: [] }), 'empty');
+  assert.equal(getOrdersViewState({ error: true, loading: false, orders: [] }), 'error');
+  assert.equal(getOrdersViewState({ error: true, loading: true, orders: [{ _id: 'cached' }] }), 'history');
+  assert.equal(getOrdersViewState({ loading: false, orders: [{ _id: 'sale' }] }), 'history');
 });
 
 test('usa el formato estándar con dos decimales y el código de moneda al final', () => {

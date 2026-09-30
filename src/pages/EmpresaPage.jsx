@@ -95,7 +95,7 @@ function EmpresaAccessPanel({ accessState, user, notify }) {
               <Divider sx={{ my: 2.5 }} />
               <Typography fontWeight={700} variant="subtitle1">Compromiso de comercio responsable</Typography>
               <Typography color="text.secondary" sx={{ mt: 0.75 }} variant="body2">
-                Al continuar, confirmas que publicarás productos legales, seguros y permitidos. VIDKAR puede retirar contenido, pausar tiendas o suspender el modo empresa si detecta incumplimientos.
+                Al continuar, confirmas que publicarás productos legales, seguros y permitidos. La plataforma puede retirar contenido, pausar tiendas o suspender el modo empresa si detecta incumplimientos.
               </Typography>
               <List dense sx={{ py: 1 }}>
                 {EMPRESA_TERMS.map((term) => (
@@ -141,7 +141,7 @@ export function EmpresaPage() {
   if (!isCompanyConfigured) {
     return (
       <Box className="simple-state">
-        <Alert severity="warning">Configura <strong>VITE_COMERCIO_EMPRESA_ID</strong> para asociar esta web al comercio.</Alert>
+        <Alert severity="warning">La gestión de este comercio todavía no está disponible. Contacta con administración.</Alert>
       </Box>
     );
   }

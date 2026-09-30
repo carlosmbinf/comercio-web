@@ -11,7 +11,7 @@ import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import BusinessCenterRoundedIcon from '@mui/icons-material/BusinessCenterRounded';
 import CheckoutWizard from './CheckoutWizard';
 
-import { COMERCIO_NOMBRE } from '../config';
+import { getCommerceDisplayName } from '../config';
 import { isConfiguredCommerceOwner } from '../domain/empresa';
 
 const NAV_ITEMS = [
@@ -27,8 +27,7 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
   const [cartOpen, setCartOpen] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const configuredStoreName = COMERCIO_NOMBRE || storefront.stores?.[0]?.title || storefront.stores?.[0]?.name || '';
-  const storeLabel = configuredStoreName || 'VIDKAR · COMERCIO';
+  const storeLabel = getCommerceDisplayName(storefront.stores);
   const userLabel = displayName(user);
   const cartCount = cart?.items?.length || 0;
   const navItems = isConfiguredCommerceOwner(user, storefront.companyId)
@@ -37,11 +36,9 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
 
   React.useEffect(() => {
     if (typeof document !== 'undefined') {
-      document.title = configuredStoreName
-        ? `Comercio · ${configuredStoreName}`
-        : 'Comercio · VIDKAR';
+      document.title = `Comercio · ${storeLabel}`;
     }
-  }, [configuredStoreName]);
+  }, [storeLabel]);
 
   return (
     <Box className={`app-root ${mode === 'dark' ? 'mode-dark' : 'mode-light'}`}>
@@ -51,7 +48,7 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
             <Box className="brand-icon"><ShoppingBagRoundedIcon /></Box>
             <Box sx={{ minWidth: 0 }}>
               <Typography className="brand-title" noWrap>{storeLabel}</Typography>
-              <Typography className="brand-caption" noWrap>COMPRA LOCAL · VIDKAR</Typography>
+              <Typography className="brand-caption" noWrap>{`COMPRA LOCAL · ${storeLabel.toLocaleUpperCase('es')}`}</Typography>
             </Box>
           </RouterLink>
 
@@ -105,7 +102,7 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
 
       <Box component="footer" className="site-footer">
         <Container maxWidth="xl" className="footer-inner">
-          <Box className="footer-brand"><StorefrontRoundedIcon fontSize="small" /> VIDKAR <span>·</span> COMERCIO</Box>
+          <Box className="footer-brand"><StorefrontRoundedIcon fontSize="small" /> {storeLabel} <span>·</span> COMERCIO</Box>
           <Typography color="text.secondary" variant="caption">Compra segura, seguimiento claro y atención en un solo lugar.</Typography>
         </Container>
       </Box>

@@ -7,12 +7,14 @@ import VerifiedUserRoundedIcon from '@mui/icons-material/VerifiedUserRounded';
 import { Link as RouterLink, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 
+import { getCommerceDisplayName } from '../config';
 import { getGoogleClientConfig, loginWithGoogleIdToken, loginWithPassword } from '../meteor/client';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { auth } = useOutletContext();
+  const { auth, storefront } = useOutletContext();
+  const companyName = getCommerceDisplayName(storefront?.stores);
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -93,11 +95,11 @@ export function LoginPage() {
         <Typography className="eyebrow" variant="overline">TU COMERCIO FAVORITO, MÁS CERCA</Typography>
         <Typography className="login-headline" variant="h2">Todo lo que te gusta, en un solo lugar.</Typography>
         <Typography color="text.secondary" sx={{ maxWidth: 460, lineHeight: 1.8 }}>
-          Accede para guardar tus compras, seguir cada pedido y comprar de forma sencilla con la experiencia segura de VIDKAR.
+          Accede para guardar tus compras, seguir cada pedido y comprar de forma sencilla en {companyName}.
         </Typography>
         <Stack className="login-trust" direction="row" spacing={1.25}>
           <VerifiedUserRoundedIcon color="success" />
-          <Typography color="text.secondary" variant="body2">Tu cuenta está protegida por el servidor Meteor de VIDKAR.</Typography>
+          <Typography color="text.secondary" variant="body2">Tu acceso está protegido.</Typography>
         </Stack>
       </Box>
       <Card className="login-card" elevation={0}>
@@ -106,7 +108,7 @@ export function LoginPage() {
             <Box className="login-icon"><LoginRoundedIcon /></Box>
             <Typography color="text.secondary" variant="overline">BIENVENIDO DE NUEVO</Typography>
             <Typography variant="h4">Inicia sesión</Typography>
-            <Typography color="text.secondary" variant="body2">Usa tu cuenta VIDKAR para continuar con tu compra.</Typography>
+            <Typography color="text.secondary" variant="body2">Inicia sesión para continuar con tu compra en {companyName}.</Typography>
           </Box>
           {error ? <Alert severity="error" sx={{ mb: 2.5 }}>{error}</Alert> : null}
           <Box component="form" onSubmit={handleSubmit}>
@@ -176,7 +178,7 @@ export function LoginPage() {
             </Box>
           ) : null}
           <Typography className="login-footnote" color="text.secondary" variant="caption">
-            El inicio de sesión y la sesión persistente se gestionan con Meteor; no almacenamos tu contraseña en esta web.
+            Tus credenciales se utilizan únicamente para verificar tu acceso.
           </Typography>
           <Button component={RouterLink} fullWidth to="/" variant="text">Volver a la tienda</Button>
         </CardContent>

@@ -168,7 +168,7 @@ export default function GoogleAddressAutocomplete({ onInputValueChange, onPlaceS
   };
 
   const helperText = !hasGoogleMapsApiKey
-    ? 'Agrega VITE_GOOGLE_MAPS_API_KEY para activar sugerencias; también puedes seleccionar el punto en el mapa.'
+    ? 'La búsqueda de direcciones no está disponible ahora; también puedes seleccionar el punto en el mapa.'
     : placesError || lookupError || (placesLibrary
       ? 'Escribe al menos 3 letras y elige una sugerencia para ubicarla en el mapa.'
       : 'Conectando con Google Places…');

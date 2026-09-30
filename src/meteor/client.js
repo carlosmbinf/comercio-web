@@ -17,7 +17,7 @@ let connectionPromise = null;
 
 export function connectToMeteor() {
   if (!METEOR_DDP_URL) {
-    return Promise.reject(new Error('Configura VITE_METEOR_DDP_URL en comercio-web/.env.'));
+    return Promise.reject(new Error('La conexión de la tienda no está configurada. Contacta con administración.'));
   }
 
   if (Meteor.status?.()?.connected) return Promise.resolve(true);

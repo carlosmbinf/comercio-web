@@ -212,7 +212,7 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
         mercadoLibreMessage = ` Publicado en Mercado Libre (${publication.itemId}).${publicationWarnings.length ? ` Sincronización parcial: ${publicationWarnings.join(' y ')}. Revisa el producto desde Productos.` : ''}`;
       } catch (publicationError) {
         const reason = String(publicationError?.reason || publicationError?.message || 'revisa los datos de publicación').trim().replace(/[.!?]+$/u, '');
-        mercadoLibreMessage = ` El artículo se guardó en VIDKAR, pero no se publicó en Mercado Libre: ${reason}.`;
+        mercadoLibreMessage = ` El artículo se guardó en el catálogo, pero no se publicó en Mercado Libre: ${reason}.`;
       }
     } else if (mercadoLibreEnabled && product?.mercadoLibre?.itemId) {
       mercadoLibreMessage = ' La actualización de Mercado Libre quedó en cola.';
@@ -257,8 +257,8 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
     if (!mercadoLibreEnabled || !product?._id || syncingProductId || closingProductId || deletingProductId) return;
     const isVariation = product.mercadoLibre?.variationId != null;
     const confirmation = isVariation
-      ? `¿Retirar la variante de “${product.name || 'este producto'}” de Mercado Libre? El producto local seguirá disponible en VIDKAR.`
-      : `¿Cerrar la publicación de “${product.name || 'este producto'}” en Mercado Libre? El producto y el stock local seguirán disponibles en VIDKAR.`;
+      ? `¿Retirar la variante de “${product.name || 'este producto'}” de Mercado Libre? El producto seguirá disponible en tu tienda.`
+      : `¿Cerrar la publicación de “${product.name || 'este producto'}” en Mercado Libre? El producto y el stock seguirán disponibles en tu tienda.`;
     if (!window.confirm(confirmation)) return;
     setPanelError('');
     setClosingProductId(product._id);
@@ -280,19 +280,18 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
     const mercadoLibreMetadata = product.mercadoLibre || {};
     const hasLinkedListing = hasMercadoLibreListing(mercadoLibreMetadata);
     const isVariation = mercadoLibreMetadata.variationId != null;
+    const listingIsClosed = String(mercadoLibreMetadata.status || '').toLowerCase() === 'closed';
     const confirmation = hasLinkedListing
-      ? `¿Eliminar “${product.name || 'este producto'}” de VIDKAR? ${isVariation ? 'Se retirará primero la variante vinculada de Mercado Libre.' : 'Se retirará primero la publicación vinculada de Mercado Libre.'} Si Mercado Libre no confirma la baja, el producto local no se eliminará.`
+      ? `¿Eliminar “${product.name || 'este producto'}” de ${storefront.stores?.[0]?.title || storefront.stores?.[0]?.name || 'tu tienda'}? ${listingIsClosed
+        ? 'La publicación figura cerrada. Si la cuenta sigue vinculada, se intentará retirarla; si ya se desconectó, solo se eliminará el producto local.'
+        : `Se retirará primero ${isVariation ? 'la variante' : 'la publicación'} vinculada de Mercado Libre. Si Mercado Libre no confirma la baja, el producto local no se eliminará.`}`
       : `¿Eliminar “${product.name || 'este producto'}” y su imagen?`;
     if (!window.confirm(confirmation)) return;
     setPanelError('');
     setDeletingProductId(product._id);
     try {
       ensureEmpresaMethodSuccess(await callMeteor('removeProducto', product._id));
-      notify?.(hasLinkedListing
-        ? isVariation
-          ? 'Producto eliminado de VIDKAR; variante retirada de Mercado Libre.'
-          : 'Producto eliminado de VIDKAR; publicación marcada como eliminada en Mercado Libre.'
-        : 'Producto eliminado.');
+      notify?.('Producto eliminado de la tienda.');
     } catch (deleteError) {
       setPanelError(deleteError?.reason || deleteError?.message || 'No se pudo eliminar el producto.');
     } finally {
@@ -368,7 +367,7 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
                     </Box>
                     <Tooltip arrow describeChild title={hasMercadoLibreListing(product.mercadoLibre)
                       ? 'Elimina el producto local y retira primero su anuncio o variante de Mercado Libre.'
-                      : 'Elimina este producto y sus fotos de la tienda VIDKAR.'}>
+                      : 'Elimina este producto y sus fotos de la tienda.'}>
                       <span>
                         <Button
                           aria-label={`Eliminar ${product.name || 'producto'}`}
@@ -409,7 +408,7 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
                         </span>
                       </Tooltip>
                       {!mercadoLibreClosed && product.mercadoLibre.itemId ? (
-                        <Tooltip arrow describeChild title="Envía las fotos actuales de VIDKAR al anuncio. Mercado Libre puede tardar en procesarlas; vuelve a sincronizar si alguna queda pendiente.">
+                        <Tooltip arrow describeChild title="Envía las fotos actuales del catálogo al anuncio. Mercado Libre puede tardar en procesarlas; vuelve a sincronizar si alguna queda pendiente.">
                           <span>
                             <Button
                               disabled={Boolean(syncingProductId || closingProductId || deletingProductId)}
@@ -424,8 +423,8 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
                       ) : null}
                       {!mercadoLibreClosed && product.mercadoLibre.itemId ? (
                         <Tooltip arrow describeChild title={product.mercadoLibre.variationId != null
-                          ? 'Retira solo esta variante de Mercado Libre; el producto VIDKAR seguirá disponible.'
-                          : 'Cierra el anuncio en Mercado Libre. El producto y el stock local seguirán disponibles en VIDKAR.'}>
+                          ? 'Retira solo esta variante de Mercado Libre; el producto seguirá disponible en tu tienda.'
+                          : 'Cierra el anuncio en Mercado Libre. El producto y el stock seguirán disponibles en tu tienda.'}>
                           <span>
                             <Button
                               disabled={Boolean(syncingProductId || closingProductId || deletingProductId)}

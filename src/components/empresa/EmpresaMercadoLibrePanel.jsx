@@ -18,21 +18,20 @@ const getServerOrigin = () => {
     return window.location.origin;
   }
 };
-const getDefaultRedirectUri = () => new URL('/api/mercadolibre/oauth/callback', getServerOrigin()).toString();
 const oauthFailureMessages = {
   previous_account_has_open_publications: 'Cierra las publicaciones abiertas de la cuenta anterior antes de vincular otro vendedor.',
-  seller_already_linked: 'Esta cuenta de Mercado Libre ya está vinculada a otro usuario VIDKAR.',
+  seller_already_linked: 'Esta cuenta de Mercado Libre ya está vinculada a otro usuario.',
   invalid_state: 'La autorización expiró o ya se utilizó. Vuelve a conectar Mercado Libre.',
   authorization_denied: 'No se autorizó la cuenta de Mercado Libre. Puedes intentarlo otra vez.',
-  pkce_required: 'La aplicación de Mercado Libre requiere PKCE, pero VIDKAR no envió un verificador válido. Administración debe igualar la configuración PKCE del servidor y DevCenter antes de volver a conectar.',
-  redirect_uri_mismatch: 'Mercado Libre rechazó la URI de retorno. Administración debe confirmar que coincide exactamente con la registrada en DevCenter.',
-  invalid_client: 'Mercado Libre rechazó la identificación de la aplicación. Administración debe revisar sus credenciales en el servidor.',
-  invalid_request: 'Mercado Libre rechazó el canje OAuth (invalid_request). Administración debe verificar PKCE y la URI de retorno de la aplicación en DevCenter.',
+  pkce_required: 'No se pudo completar la autorización de Mercado Libre. Contacta con administración para revisar la conexión.',
+  redirect_uri_mismatch: 'Mercado Libre no aceptó la dirección de retorno. Administración debe revisar la configuración de la conexión.',
+  invalid_client: 'Mercado Libre rechazó la configuración de esta conexión. Contacta con administración.',
+  invalid_request: 'Mercado Libre no pudo completar la autorización. Administración debe revisar la configuración de la conexión.',
   invalid_grant: 'El código de autorización expiró, ya se usó o corresponde a otra aplicación o URI. Vuelve a conectar Mercado Libre.',
 };
 const getOAuthFailureMessage = (reason) => Object.prototype.hasOwnProperty.call(oauthFailureMessages, reason)
   ? oauthFailureMessages[reason]
-  : 'Mercado Libre no completó la vinculación. Comprueba la configuración OAuth y vuelve a intentarlo.';
+  : 'Mercado Libre no completó la vinculación. Inténtalo de nuevo o contacta con administración.';
 
 export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }) {
   const [integration, setIntegration] = React.useState(null);
@@ -207,7 +206,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
 
   const disconnect = async () => {
     if (!integration?.configured || busyAction) return;
-    if (!window.confirm('¿Desconectar esta cuenta? Primero deben estar cerradas todas las publicaciones vinculadas. Los artículos locales seguirán disponibles; si quedan publicaciones activas, VIDKAR bloqueará la desconexión para evitar ventas sin sincronización.')) return;
+    if (!window.confirm('¿Desconectar esta cuenta? Primero deben estar cerradas todas las publicaciones vinculadas. Los artículos de tu tienda seguirán disponibles.')) return;
     setError('');
     setBusyAction('disconnect');
     try {
@@ -275,12 +274,12 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       <Box className="empresa-panel-heading">
         <Box>
           <Typography variant="h4">Mercado Libre Uruguay</Typography>
-          <Typography color="text.secondary" variant="body2">Vincula una cuenta propia. La autorización y sus publicaciones quedan aisladas por usuario VIDKAR.</Typography>
+          <Typography color="text.secondary" variant="body2">Vincula tu cuenta de vendedor. Cada comercio administra sus propias publicaciones.</Typography>
         </Box>
         <Chip
           color={enabled ? 'success' : configured ? 'default' : pendingOAuthError ? 'warning' : oauthAppReady ? 'primary' : 'warning'}
           icon={enabled ? <CheckCircleOutlineRoundedIcon /> : <StorefrontRoundedIcon />}
-          label={enabled ? 'Habilitado' : configured ? 'Desactivado' : pendingOAuthError ? 'Error de autorización' : oauthAppReady ? 'Listo para vincular' : 'OAuth no configurado'}
+          label={enabled ? 'Habilitado' : configured ? 'Desactivado' : pendingOAuthError ? 'Error de autorización' : oauthAppReady ? 'Listo para vincular' : 'Conexión no configurada'}
         />
       </Box>
 
@@ -291,19 +290,19 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       ) : null}
       <Paper className="empresa-empty" elevation={0}>
         <Box>
-          <Typography fontWeight={750} variant="h6">Aplicación OAuth de VIDKAR</Typography>
+          <Typography fontWeight={750} variant="h6">Conexión con Mercado Libre</Typography>
           <Typography color="text.secondary" variant="body2">
-            VIDKAR administra una única aplicación OAuth desde la configuración privada del servidor. Cada comercio autoriza su propia cuenta; no ingreses ni compartas Client ID o Client Secret aquí.
+            La conexión se administra de forma centralizada. Autoriza tu propia cuenta y no compartas tu contraseña fuera del sitio oficial de Mercado Libre.
           </Typography>
         </Box>
         {!oauthAppReady ? (
           <Alert severity="warning">
-            La integración OAuth aún no está configurada por VIDKAR en el servidor. Contacta a administración.
+            La conexión con Mercado Libre todavía no está disponible. Contacta con administración.
             {integration?.oauthApp?.missing?.length ? ` Falta: ${integration.oauthApp.missing.join(', ')}.` : ''}
           </Alert>
         ) : null}
         {oauthAppReady && !integration?.oauthApp?.webReturnUrl ? (
-          <Alert severity="warning">Administración debe configurar <code>MERCADOLIBRE_WEB_RETURN_URL</code> para conectar desde la web.</Alert>
+          <Alert severity="warning">La conexión aún no puede iniciarse desde este sitio. Contacta con administración.</Alert>
         ) : null}
       </Paper>
 
@@ -314,13 +313,13 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
             <Typography color="text.secondary" variant="body2">
               {configured
                 ? `Cuenta vendedora ${integration.account?.sellerId || ''} · ${integration.account?.siteId || 'MLU'}`
-                : 'Autoriza tu cuenta de Mercado Libre con el flujo oficial. VIDKAR no recibe ni almacena tu contraseña.'}
+                : 'Conecta tu cuenta de vendedor desde el sitio oficial de Mercado Libre. Tu contraseña solo se introduce allí.'}
             </Typography>
           </Box>
           {(!configured || integration?.status === 'reauthorization_required') ? (
             <Tooltip arrow describeChild title={configured
-              ? 'Renueva el permiso de esta cuenta para que VIDKAR pueda seguir sincronizando sus publicaciones.'
-              : 'Abre Mercado Libre para autorizar el vendedor de este usuario VIDKAR. VIDKAR nunca recibe tu contraseña.'}>
+              ? 'Renueva el permiso de esta cuenta para continuar actualizando sus publicaciones.'
+              : 'Abre el sitio oficial de Mercado Libre para conectar esta cuenta de vendedor.'}>
               <span>
                 <Button
                   disabled={Boolean(busyAction) || !oauthAppReady || !integration?.oauthApp?.webReturnUrl}
@@ -343,7 +342,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
             </Box>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               <Tooltip arrow describeChild title={enabled
-                ? 'Pausa la sincronización automática. VIDKAR no permite desactivar mientras queden publicaciones abiertas.'
+                ? 'Pausa las actualizaciones automáticas. Primero deben cerrarse todas las publicaciones abiertas.'
                 : 'Reanuda la sincronización para las publicaciones ya vinculadas; no crea anuncios nuevos.'}>
                 <span>
                   <Button disabled={Boolean(busyAction)} onClick={toggleIntegration} variant={enabled ? 'outlined' : 'contained'}>
@@ -358,13 +357,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
               </Tooltip>
             </Box>
           </Box>
-        ) : (
-          <Alert severity="info" sx={{ mt: 2 }}>
-            {oauthAppReady
-              ? <>Al continuar, inicia sesión y autoriza tu cuenta de vendedor. El callback de la aplicación de VIDKAR es <code>{integration?.oauthApp?.redirectUri || getDefaultRedirectUri()}</code>.</>
-              : 'La conexión estará disponible cuando administración configure la aplicación OAuth común de VIDKAR.'}
-          </Alert>
-        )}
+        ) : null}
       </Paper>
 
       {enabled ? (
@@ -375,7 +368,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
           </Box>
           <FormControl size="small" sx={{ minWidth: 220 }}>
             <Select
-              aria-label="Tienda VIDKAR destino"
+              aria-label="Tienda destino"
               displayEmpty
               onChange={(event) => setSelectedStoreId(event.target.value)}
               value={selectedStoreId}
@@ -403,7 +396,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
         <Paper className="empresa-toolbar" elevation={0}>
           <Box sx={{ flex: 1, minWidth: 240 }}>
             <Typography fontWeight={750} variant="subtitle1">Depósito de stock multiorigen</Typography>
-            <Typography color="text.secondary" variant="body2">Asocia el depósito de Mercado Libre a la tienda VIDKAR seleccionada para que las ventas cambien solo ese stock.</Typography>
+            <Typography color="text.secondary" variant="body2">Asocia el depósito de Mercado Libre a esta tienda para que las ventas actualicen solo ese stock.</Typography>
           </Box>
           {stockLocations.length ? (
             <FormControl size="small" sx={{ minWidth: 240 }}>
@@ -424,7 +417,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
           ) : (
             <Chip label="No hay depósitos Mercado Libre" size="small" />
           )}
-          <Tooltip arrow describeChild title="Vincula esta tienda VIDKAR con el depósito elegido. Las ventas actualizarán solo ese stock de Mercado Libre.">
+          <Tooltip arrow describeChild title="Vincula esta tienda con el depósito elegido. Las ventas actualizarán solo ese stock de Mercado Libre.">
             <span>
               <Button
                 disabled={!selectedStoreId || !selectedStockLocation || Boolean(busyAction)}
