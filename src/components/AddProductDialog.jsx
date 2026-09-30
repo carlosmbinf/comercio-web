@@ -6,6 +6,7 @@ import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { formatMoney } from '../domain/commerce';
+import { callMeteor } from '../meteor/client';
 import ProductImageCarousel from './ProductImageCarousel';
 
 export default function AddProductDialog({
@@ -26,6 +27,8 @@ export default function AddProductDialog({
   const [quantity, setQuantity] = React.useState(1);
   const [comment, setComment] = React.useState('');
   const [error, setError] = React.useState('');
+  const [specifications, setSpecifications] = React.useState([]);
+  const [loadingSpecifications, setLoadingSpecifications] = React.useState(false);
   const price = Number(product?.precio) || 0;
   const stock = Math.max(0, Number(product?.count) || 0);
   const isMadeToOrder = Boolean(product?.productoDeElaboracion);
@@ -55,6 +58,19 @@ export default function AddProductDialog({
       setComment('');
       setError('');
     }
+  }, [open, product?._id]);
+
+  React.useEffect(() => {
+    let active = true;
+    setSpecifications([]);
+    setLoadingSpecifications(Boolean(open && product?._id));
+    if (open && product?._id) {
+      callMeteor('comercio.getProductSpecifications', product._id)
+        .then((items) => { if (active) setSpecifications(Array.isArray(items) ? items : []); })
+        .catch(() => { if (active) setSpecifications([]); })
+        .finally(() => { if (active) setLoadingSpecifications(false); });
+    }
+    return () => { active = false; };
   }, [open, product?._id]);
 
   const submit = async () => {
@@ -135,6 +151,24 @@ export default function AddProductDialog({
             {description || 'El comercio todavía no ha añadido una descripción para este producto.'}
           </Typography>
         </Box>
+
+        {loadingSpecifications || specifications.length > 0 ? (
+          <Box className="product-detail-description" aria-live="polite">
+            <Typography className="product-detail-label" component="h3" variant="subtitle2">Características del producto</Typography>
+            {loadingSpecifications ? (
+              <Typography color="text.secondary" variant="body2">Cargando características…</Typography>
+            ) : (
+              <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'minmax(100px, 1fr) 2fr', gap: 1, m: 0 }}>
+                {specifications.map(({ label, value }) => (
+                  <React.Fragment key={label}>
+                    <Typography component="dt" color="text.secondary" variant="body2">{label}</Typography>
+                    <Typography component="dd" sx={{ m: 0, overflowWrap: 'anywhere' }} variant="body2">{value}</Typography>
+                  </React.Fragment>
+                ))}
+              </Box>
+            )}
+          </Box>
+        ) : null}
 
         <Box className="product-quantity-panel">
           <Box className="product-quantity-copy">

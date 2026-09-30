@@ -1,13 +1,16 @@
 import React from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl, InputAdornment, MenuItem, Paper, Select, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl, InputAdornment, MenuItem, Paper, Select, TextField, Tooltip, Typography } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import StopCircleRoundedIcon from '@mui/icons-material/StopCircleRounded';
+import SyncRoundedIcon from '@mui/icons-material/SyncRounded';
 import { Meteor, callMeteor } from '../../meteor/client';
 import { CategoriasComercioCollection, ConfigCollection, ProductosComercioCollection, TiendasComercioCollection } from '../../meteor/collections';
 import { formatMoney } from '../../domain/commerce';
 import { ensureEmpresaMethodSuccess } from '../../domain/empresa';
+import { getMercadoLibreStatusPresentation, hasMercadoLibreListing } from '../../domain/mercadoLibreStatus';
 import EmpresaProductDialog from './EmpresaProductDialog';
 
 const STORE_FIELDS = {
@@ -75,18 +78,23 @@ const getCategoryPath = (category, categoriesById) => {
   return { active: activePath, label: names.join(' › ') };
 };
 
-export default function EmpresaProductsPanel({ notify, user }) {
+export default function EmpresaProductsPanel({ notify, storefront, user }) {
   const [search, setSearch] = React.useState('');
   const [storeFilter, setStoreFilter] = React.useState('all');
   const [editingProduct, setEditingProduct] = React.useState(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [panelError, setPanelError] = React.useState('');
+  const [mercadoLibreEnabled, setMercadoLibreEnabled] = React.useState(false);
+  const [syncingProductId, setSyncingProductId] = React.useState('');
+  const [closingProductId, setClosingProductId] = React.useState('');
+  const [deletingProductId, setDeletingProductId] = React.useState('');
 
   const data = Meteor.useTracker(() => {
     const storesHandle = user?._id ? Meteor.subscribe('comercio.tiendasEmpresa') : null;
-    const stores = storesHandle?.ready()
+    const subscriptionStores = storesHandle?.ready()
       ? TiendasComercioCollection.find({ idUser: user._id }, { fields: STORE_FIELDS, sort: { title: 1 } }).fetch()
       : [];
+    const stores = subscriptionStores.length ? subscriptionStores : (storefront?.stores || []);
     const ids = stores.map((store) => String(store._id));
     const productHandle = ids.length
       ? Meteor.subscribe('comercio.productosEmpresa', ids)
@@ -107,6 +115,18 @@ export default function EmpresaProductsPanel({ notify, user }) {
       ready: Boolean((!storesHandle || storesHandle.ready()) && (!productHandle || productHandle.ready()) && (!categoriesHandle || categoriesHandle.ready()) && currencyHandle.ready()),
       stores,
     };
+  }, [user?._id, storefront?.stores]);
+
+  React.useEffect(() => {
+    let active = true;
+    if (!user?._id) {
+      setMercadoLibreEnabled(false);
+      return undefined;
+    }
+    callMeteor('comercio.mercadoLibre.getEstado')
+      .then((state) => { if (active) setMercadoLibreEnabled(state?.enabled === true); })
+      .catch(() => { if (active) setMercadoLibreEnabled(false); });
+    return () => { active = false; };
   }, [user?._id]);
 
   const categoryOptions = React.useMemo(() => {
@@ -137,7 +157,7 @@ export default function EmpresaProductsPanel({ notify, user }) {
     setDialogOpen(true);
   };
 
-  const saveProduct = async ({ images = [], product, removedImageIds = [], removeAllImages = false, values }) => {
+  const saveProduct = async ({ images = [], mercadoLibrePublication, product, removedImageIds = [], removeAllImages = false, values }) => {
     let productId = product?._id;
     if (productId) {
       const { idTienda: _storeId, ...productData } = values;
@@ -180,20 +200,103 @@ export default function EmpresaProductsPanel({ notify, user }) {
       }
     }
 
+    let mercadoLibreMessage = '';
+    if (mercadoLibreEnabled && mercadoLibrePublication?.publish === true) {
+      try {
+        const publication = await callMeteor('comercio.mercadoLibre.publicarProducto', productId, mercadoLibrePublication);
+        if (publication?.success !== true) throw new Error('Mercado Libre no confirmó la publicación.');
+        const publicationWarnings = [];
+        if (publication.stockSynced === false) publicationWarnings.push('el stock requiere atención');
+        if (publication.descriptionSynced === false) publicationWarnings.push('la descripción requiere atención');
+        if (publication.picturesSynced === false || publication.picturesWarning) publicationWarnings.push('las fotos aún no se confirmaron en Mercado Libre');
+        mercadoLibreMessage = ` Publicado en Mercado Libre (${publication.itemId}).${publicationWarnings.length ? ` Sincronización parcial: ${publicationWarnings.join(' y ')}. Revisa el producto desde Productos.` : ''}`;
+      } catch (publicationError) {
+        const reason = String(publicationError?.reason || publicationError?.message || 'revisa los datos de publicación').trim().replace(/[.!?]+$/u, '');
+        mercadoLibreMessage = ` El artículo se guardó en VIDKAR, pero no se publicó en Mercado Libre: ${reason}.`;
+      }
+    } else if (mercadoLibreEnabled && product?.mercadoLibre?.itemId) {
+      mercadoLibreMessage = ' La actualización de Mercado Libre quedó en cola.';
+    }
+
     notify?.(imageErrors.length
-      ? `Producto guardado; ${imageErrors.length} imagen(es) requieren atención: ${imageErrors[0]}`
-      : product ? 'Producto actualizado.' : 'Producto creado.');
+      ? `Producto guardado; ${imageErrors.length} imagen(es) requieren atención: ${imageErrors[0]}.${mercadoLibreMessage}`
+      : `${product ? 'Producto actualizado.' : 'Producto creado.'}${mercadoLibreMessage}`);
+  };
+
+  const syncMercadoLibreProduct = async (product) => {
+    if (!mercadoLibreEnabled || !product?._id || syncingProductId || closingProductId || deletingProductId) return;
+    setPanelError('');
+    setSyncingProductId(product._id);
+    try {
+      const result = await callMeteor('comercio.mercadoLibre.sincronizarProducto', product._id);
+      notify?.(result?.queued ? 'La sincronización del producto quedó en cola.' : 'No se realizaron cambios en Mercado Libre.');
+    } catch (syncError) {
+      setPanelError(syncError?.reason || syncError?.message || 'No se pudo sincronizar el producto.');
+    } finally {
+      setSyncingProductId('');
+    }
+  };
+
+  const syncMercadoLibrePictures = async (product) => {
+    if (!mercadoLibreEnabled || !product?._id || syncingProductId || closingProductId || deletingProductId) return;
+    setPanelError('');
+    setSyncingProductId(product._id);
+    try {
+      const result = await callMeteor('comercio.mercadoLibre.sincronizarFotos', product._id);
+      notify?.(result?.picturesSynced
+        ? 'Mercado Libre confirmó las fotos de la publicación.'
+        : 'Se enviaron las fotos; Mercado Libre todavía las está procesando. Vuelve a comprobarlas más tarde.');
+    } catch (syncError) {
+      setPanelError(syncError?.reason || syncError?.message || 'No se pudieron actualizar las fotos.');
+    } finally {
+      setSyncingProductId('');
+    }
+  };
+
+  const closeMercadoLibreProduct = async (product) => {
+    if (!mercadoLibreEnabled || !product?._id || syncingProductId || closingProductId || deletingProductId) return;
+    const isVariation = product.mercadoLibre?.variationId != null;
+    const confirmation = isVariation
+      ? `¿Retirar la variante de “${product.name || 'este producto'}” de Mercado Libre? El producto local seguirá disponible en VIDKAR.`
+      : `¿Cerrar la publicación de “${product.name || 'este producto'}” en Mercado Libre? El producto y el stock local seguirán disponibles en VIDKAR.`;
+    if (!window.confirm(confirmation)) return;
+    setPanelError('');
+    setClosingProductId(product._id);
+    try {
+      const result = await callMeteor('comercio.mercadoLibre.cerrarPublicacion', product._id);
+      if (result?.success !== true) throw new Error('Mercado Libre no confirmó el cierre de la publicación.');
+      notify?.(result.removedVariation
+        ? 'Variante retirada de Mercado Libre; el producto local sigue disponible.'
+        : 'Publicación cerrada en Mercado Libre; el producto local sigue disponible.');
+    } catch (closeError) {
+      setPanelError(closeError?.reason || closeError?.message || 'No se pudo cerrar la publicación.');
+    } finally {
+      setClosingProductId('');
+    }
   };
 
   const deleteProduct = async (product) => {
-    if (!window.confirm(`¿Eliminar “${product.name || 'este producto'}” y su imagen?`)) return;
+    if (!product?._id || syncingProductId || closingProductId || deletingProductId) return;
+    const mercadoLibreMetadata = product.mercadoLibre || {};
+    const hasLinkedListing = hasMercadoLibreListing(mercadoLibreMetadata);
+    const isVariation = mercadoLibreMetadata.variationId != null;
+    const confirmation = hasLinkedListing
+      ? `¿Eliminar “${product.name || 'este producto'}” de VIDKAR? ${isVariation ? 'Se retirará primero la variante vinculada de Mercado Libre.' : 'Se retirará primero la publicación vinculada de Mercado Libre.'} Si Mercado Libre no confirma la baja, el producto local no se eliminará.`
+      : `¿Eliminar “${product.name || 'este producto'}” y su imagen?`;
+    if (!window.confirm(confirmation)) return;
     setPanelError('');
+    setDeletingProductId(product._id);
     try {
-      ensureEmpresaMethodSuccess(await callMeteor('comercio.deleteProductImage', product._id));
       ensureEmpresaMethodSuccess(await callMeteor('removeProducto', product._id));
-      notify?.('Producto eliminado.');
+      notify?.(hasLinkedListing
+        ? isVariation
+          ? 'Producto eliminado de VIDKAR; variante retirada de Mercado Libre.'
+          : 'Producto eliminado de VIDKAR; publicación marcada como eliminada en Mercado Libre.'
+        : 'Producto eliminado.');
     } catch (deleteError) {
       setPanelError(deleteError?.reason || deleteError?.message || 'No se pudo eliminar el producto.');
+    } finally {
+      setDeletingProductId('');
     }
   };
 
@@ -224,10 +327,10 @@ export default function EmpresaProductsPanel({ notify, user }) {
       </Box>
 
       {panelError ? <Alert onClose={() => setPanelError('')} severity="error">{panelError}</Alert> : null}
-      {!data.stores.length ? (
-        <Paper className="empresa-empty" elevation={0}><Inventory2RoundedIcon color="disabled" fontSize="large" /><Typography variant="h6">Primero registra una tienda</Typography><Typography color="text.secondary" variant="body2">Los productos siempre deben pertenecer a una de tus sucursales.</Typography></Paper>
-      ) : !data.ready ? (
+      {!data.ready ? (
         <Paper className="empresa-loading-inline" elevation={0}><CircularProgress size={22} /><Typography color="text.secondary">Cargando catálogo y categorías…</Typography></Paper>
+      ) : !data.stores.length ? (
+        <Paper className="empresa-empty" elevation={0}><Inventory2RoundedIcon color="disabled" fontSize="large" /><Typography variant="h6">Primero registra una tienda</Typography><Typography color="text.secondary" variant="body2">Los productos siempre deben pertenecer a una de tus sucursales.</Typography></Paper>
       ) : !products.length ? (
         <Paper className="empresa-empty" elevation={0}><Inventory2RoundedIcon color="primary" fontSize="large" /><Typography variant="h6">No hay productos con esos filtros</Typography><Typography color="text.secondary" variant="body2">Crea un producto o ajusta la búsqueda para ver el catálogo.</Typography>{data.products.length ? <Button onClick={() => { setSearch(''); setStoreFilter('all'); }} variant="outlined">Limpiar filtros</Button> : null}</Paper>
       ) : (
@@ -235,6 +338,25 @@ export default function EmpresaProductsPanel({ notify, user }) {
           {products.map((product) => {
             const store = data.stores.find((item) => String(item._id) === String(product.idTienda));
             const stock = Math.max(0, Number(product.count || 0));
+            const mercadoLibreStatus = getMercadoLibreStatusPresentation(product.mercadoLibre?.status);
+            const mercadoLibreClosed = String(product.mercadoLibre?.status || '').toLowerCase() === 'closed';
+            const mercadoLibreWarnings = [
+              product.mercadoLibre?.stockSyncSupported === false
+                ? 'El stock de esta variante/depósito no se puede sincronizar automáticamente; revisa el inventario en Mercado Libre.'
+                : product.mercadoLibre?.stockLocationRequired === true
+                  ? 'Asocia esta tienda con un depósito de Mercado Libre en Integraciones antes de sincronizar su stock.'
+                : '',
+              product.mercadoLibre?.priceSyncWarning === 'pricing-automation-active'
+                ? 'El precio está gestionado por una automatización de Mercado Libre y no se sobrescribió.'
+                : product.mercadoLibre?.priceSyncWarning === 'pricing-automation-unverified'
+                  ? 'No se pudo verificar la automatización de precios; el precio remoto se dejó intacto.'
+                  : product.mercadoLibre?.priceSyncWarning
+                    ? 'El precio requiere revisión en Mercado Libre.'
+                  : '',
+              product.mercadoLibre?.picturesSyncWarning ? 'Las imágenes requieren revisión en Mercado Libre.' : '',
+              product.mercadoLibre?.descriptionSynced === false ? 'La descripción requiere revisión en Mercado Libre.' : '',
+              product.mercadoLibre?.titleSyncWarning ? 'El título requiere revisión en Mercado Libre.' : '',
+            ].filter(Boolean);
             return (
               <Card className="empresa-product-card" elevation={0} key={product._id}>
                 <CardContent>
@@ -244,15 +366,89 @@ export default function EmpresaProductsPanel({ notify, user }) {
                       <Typography fontWeight={750} noWrap variant="subtitle1">{product.name || 'Producto'}</Typography>
                       <Typography color="text.secondary" noWrap variant="caption">{store?.title || 'Tienda'}</Typography>
                     </Box>
-                    <Button aria-label={`Eliminar ${product.name || 'producto'}`} color="error" onClick={() => deleteProduct(product)} size="small" startIcon={<DeleteOutlineRoundedIcon />} variant="text">Eliminar</Button>
+                    <Tooltip arrow describeChild title={hasMercadoLibreListing(product.mercadoLibre)
+                      ? 'Elimina el producto local y retira primero su anuncio o variante de Mercado Libre.'
+                      : 'Elimina este producto y sus fotos de la tienda VIDKAR.'}>
+                      <span>
+                        <Button
+                          aria-label={`Eliminar ${product.name || 'producto'}`}
+                          color="error"
+                          disabled={Boolean(deletingProductId || syncingProductId || closingProductId)}
+                          onClick={() => deleteProduct(product)}
+                          size="small"
+                          startIcon={deletingProductId === product._id ? <CircularProgress color="inherit" size={14} /> : <DeleteOutlineRoundedIcon />}
+                          variant="text"
+                        >
+                          {deletingProductId === product._id ? 'Eliminando…' : 'Eliminar'}
+                        </Button>
+                      </span>
+                    </Tooltip>
                   </Box>
                   <Typography className="empresa-product-description" color="text.secondary" variant="body2">{product.descripcion || 'Sin descripción.'}</Typography>
                   <Box className="empresa-product-meta">
                     <Typography fontWeight={750} variant="h6">{formatMoney(product.precio, product.monedaPrecio || 'USD')}</Typography>
                     <Chip label={product.productoDeElaboracion ? 'Por encargo' : stock ? `${stock} disponibles` : 'Agotado'} size="small" color={product.productoDeElaboracion ? 'secondary' : stock ? 'success' : 'default'} />
                   </Box>
+                  {mercadoLibreEnabled && hasMercadoLibreListing(product.mercadoLibre) ? (
+                    <Box sx={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                      <Chip
+                        color={mercadoLibreStatus.color}
+                        label={`Mercado Libre · ${mercadoLibreStatus.label}`}
+                        size="small"
+                      />
+                      <Tooltip arrow describeChild title="Envía a Mercado Libre los cambios locales compatibles de stock, precio y descripción; respeta automatizaciones de precio.">
+                        <span>
+                          <Button
+                            disabled={syncingProductId === product._id || Boolean(syncingProductId || closingProductId || deletingProductId) || mercadoLibreClosed || !product.mercadoLibre.itemId}
+                            onClick={() => syncMercadoLibreProduct(product)}
+                            size="small"
+                            startIcon={syncingProductId === product._id ? <CircularProgress color="inherit" size={14} /> : <SyncRoundedIcon />}
+                          >
+                            Sincronizar
+                          </Button>
+                        </span>
+                      </Tooltip>
+                      {!mercadoLibreClosed && product.mercadoLibre.itemId ? (
+                        <Tooltip arrow describeChild title="Envía las fotos actuales de VIDKAR al anuncio. Mercado Libre puede tardar en procesarlas; vuelve a sincronizar si alguna queda pendiente.">
+                          <span>
+                            <Button
+                              disabled={Boolean(syncingProductId || closingProductId || deletingProductId)}
+                              onClick={() => syncMercadoLibrePictures(product)}
+                              size="small"
+                              startIcon={syncingProductId === product._id ? <CircularProgress color="inherit" size={14} /> : <SyncRoundedIcon />}
+                            >
+                              Actualizar fotos
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                      {!mercadoLibreClosed && product.mercadoLibre.itemId ? (
+                        <Tooltip arrow describeChild title={product.mercadoLibre.variationId != null
+                          ? 'Retira solo esta variante de Mercado Libre; el producto VIDKAR seguirá disponible.'
+                          : 'Cierra el anuncio en Mercado Libre. El producto y el stock local seguirán disponibles en VIDKAR.'}>
+                          <span>
+                            <Button
+                              disabled={Boolean(syncingProductId || closingProductId || deletingProductId)}
+                              onClick={() => closeMercadoLibreProduct(product)}
+                              size="small"
+                              startIcon={closingProductId === product._id ? <CircularProgress color="inherit" size={14} /> : <StopCircleRoundedIcon />}
+                            >
+                              {product.mercadoLibre.variationId != null ? 'Retirar variante' : 'Cerrar publicación'}
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                    </Box>
+                  ) : null}
+                  {mercadoLibreEnabled && hasMercadoLibreListing(product.mercadoLibre) && mercadoLibreWarnings.length ? (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                      {mercadoLibreWarnings.join(' ')}
+                    </Alert>
+                  ) : null}
                   {product.idCategoria ? <Typography color="text.secondary" variant="caption">Categoría asignada</Typography> : <Typography color="text.secondary" variant="caption">Sin categoría</Typography>}
-                  <Button fullWidth onClick={() => openEdit(product)} sx={{ mt: 1.5 }} variant="outlined">Editar producto</Button>
+                  <Tooltip arrow describeChild title="Edita los datos, fotos e inventario local. Los cambios compatibles de Mercado Libre se sincronizan según el estado de la publicación.">
+                    <span style={{ display: 'block' }}><Button fullWidth onClick={() => openEdit(product)} sx={{ mt: 1.5 }} variant="outlined">Editar producto</Button></span>
+                  </Tooltip>
                 </CardContent>
               </Card>
             );
@@ -263,6 +459,7 @@ export default function EmpresaProductsPanel({ notify, user }) {
       <EmpresaProductDialog
         categories={categoryOptions}
         currencyOptions={data.currencies}
+        mercadoLibreEnabled={mercadoLibreEnabled}
         onClose={() => setDialogOpen(false)}
         onSave={saveProduct}
         open={dialogOpen}
