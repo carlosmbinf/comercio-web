@@ -206,6 +206,38 @@ export default function EmpresaProductDialog({
     pendingImagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl));
   }, []);
 
+  React.useEffect(() => {
+    if (!open || typeof window === 'undefined') return undefined;
+
+    const { body, documentElement } = document;
+    const scrollY = window.scrollY;
+    const previousBodyStyles = {
+      left: body.style.left,
+      overflow: body.style.overflow,
+      position: body.style.position,
+      right: body.style.right,
+      top: body.style.top,
+      width: body.style.width,
+    };
+    const previousDocumentOverflow = documentElement.style.overflow;
+
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    documentElement.style.overflow = 'hidden';
+
+    return () => {
+      Object.entries(previousBodyStyles).forEach(([property, value]) => {
+        body.style[property] = value;
+      });
+      documentElement.style.overflow = previousDocumentOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
+
   const update = (key, value) => {
     setForm((current) => {
       const next = { ...current, [key]: value };
@@ -463,7 +495,7 @@ export default function EmpresaProductDialog({
       {/* Header profesional */}
       <Box className="empresa-pro-dialog-header">
         <Box className="empresa-pro-dialog-header-copy">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box className="empresa-pro-dialog-title-row" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography fontWeight={800} variant="h5">
               {isEditing ? 'Editar producto' : 'Nuevo producto'}
             </Typography>
@@ -485,11 +517,12 @@ export default function EmpresaProductDialog({
         </IconButton>
       </Box>
 
-      {/* Stepper dinámico interactivo */}
+      {/* Indicador visual del progreso */}
       <Box
         aria-label="Progreso de edición del producto"
         className="empresa-pro-stepper"
-        component="nav"
+        component="div"
+        role="list"
       >
         <span
           aria-hidden="true"
@@ -501,13 +534,13 @@ export default function EmpresaProductDialog({
         {steps.map((step, idx) => {
           const isDone = (idx === 0 && step0Complete) || (idx === 1 && step1Complete) || (idx === 2 && step2Complete);
           return (
-            <button
-              className={`empresa-pro-step-btn ${currentStep === idx ? 'active' : ''} ${isDone ? 'completed' : ''}`}
+            <Box
               aria-current={currentStep === idx ? 'step' : undefined}
               aria-label={`Paso ${idx + 1}: ${step.label}${isDone ? ', completado' : ''}${currentStep === idx ? ', actual' : ''}`}
+              className={`empresa-pro-step ${currentStep === idx ? 'active' : ''} ${isDone ? 'completed' : ''}`}
+              component="div"
               key={step.id}
-              onClick={() => setCurrentStep(idx)}
-              type="button"
+              role="listitem"
             >
               <span className="empresa-pro-step-visual">
                 {isDone && currentStep !== idx ? <CheckCircleRoundedIcon fontSize="small" /> : step.icon}
@@ -516,7 +549,7 @@ export default function EmpresaProductDialog({
                 <span className="empresa-pro-step-kicker">Paso {idx + 1}</span>
                 <span className="empresa-pro-step-label">{step.label}</span>
               </span>
-            </button>
+            </Box>
           );
         })}
       </Box>
@@ -529,7 +562,7 @@ export default function EmpresaProductDialog({
         variant="determinate"
       />
 
-      <Box component="form" onSubmit={submit}>
+      <Box className="empresa-pro-dialog-form" component="form" onSubmit={submit}>
         <DialogContent className="empresa-pro-dialog-body">
           {/* Columna Izquierda: Formulario paso a paso */}
           <Box className="empresa-pro-form-col">
@@ -538,7 +571,7 @@ export default function EmpresaProductDialog({
             {/* PASO 0: Información básica */}
             {currentStep === 0 && (
               <Fade in timeout={200}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.25, sm: 2.2 } }}>
                   <Typography fontWeight={750} sx={{ display: 'flex', alignItems: 'center', gap: 1 }} variant="subtitle1">
                     <LocalOfferRoundedIcon color="primary" fontSize="small" /> 1. Datos básicos
                   </Typography>
@@ -615,16 +648,6 @@ export default function EmpresaProductDialog({
                     value={selectedCategoryOption}
                   />
 
-                  <Box sx={{ pt: 1, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                      disabled={!nameValid || !form.storeId}
-                      endIcon={<ArrowForwardRoundedIcon />}
-                      onClick={() => setCurrentStep(1)}
-                      variant="contained"
-                    >
-                      Siguiente: Precio e inventario
-                    </Button>
-                  </Box>
                 </Box>
               </Fade>
             )}
@@ -632,7 +655,7 @@ export default function EmpresaProductDialog({
             {/* PASO 1: Precio e inventario */}
             {currentStep === 1 && (
               <Fade in timeout={200}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.25, sm: 2.2 } }}>
                   <Typography fontWeight={750} sx={{ display: 'flex', alignItems: 'center', gap: 1 }} variant="subtitle1">
                     <AttachMoneyRoundedIcon color="primary" fontSize="small" /> 2. Precio y modalidad de entrega
                   </Typography>
@@ -669,7 +692,7 @@ export default function EmpresaProductDialog({
 
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
                     <Typography color="text.secondary" variant="caption">Disponibilidad del producto:</Typography>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.2 }}>
+                    <Box className="empresa-pro-delivery-options" sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.2 }}>
                       <Box
                         className={`empresa-pro-delivery-card ${!form.madeToOrder ? 'active' : ''}`}
                         onClick={() => update('madeToOrder', false)}
@@ -708,19 +731,6 @@ export default function EmpresaProductDialog({
                     />
                   </Collapse>
 
-                  <Box sx={{ pt: 1, display: 'flex', justifyContent: 'space-between' }}>
-                    <Button onClick={() => setCurrentStep(0)} startIcon={<ArrowBackRoundedIcon />}>
-                      Atrás
-                    </Button>
-                    <Button
-                      disabled={!priceValid}
-                      endIcon={<ArrowForwardRoundedIcon />}
-                      onClick={() => setCurrentStep(2)}
-                      variant="contained"
-                    >
-                      Siguiente: Fotos y detalles
-                    </Button>
-                  </Box>
                 </Box>
               </Fade>
             )}
@@ -728,7 +738,7 @@ export default function EmpresaProductDialog({
             {/* PASO 2: Fotos y detalles */}
             {currentStep === 2 && (
               <Fade in timeout={200}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.25, sm: 2.2 } }}>
                   <Typography fontWeight={750} sx={{ display: 'flex', alignItems: 'center', gap: 1 }} variant="subtitle1">
                     <AddPhotoAlternateRoundedIcon color="primary" fontSize="small" /> 3. Galería y descripción
                   </Typography>
@@ -816,29 +826,6 @@ export default function EmpresaProductDialog({
                     </Collapse>
                   </Box>
 
-                  <Box sx={{ pt: 1, display: 'flex', justifyContent: 'space-between' }}>
-                    <Button onClick={() => setCurrentStep(1)} startIcon={<ArrowBackRoundedIcon />}>
-                      Atrás
-                    </Button>
-                    {mercadoLibreEnabled ? (
-                      <Button
-                        endIcon={<ArrowForwardRoundedIcon />}
-                        onClick={() => setCurrentStep(3)}
-                        variant="outlined"
-                      >
-                        Siguiente: Mercado Libre
-                      </Button>
-                    ) : (
-                      <Button
-                        disabled={saving || !nameValid || !priceValid || !descValid}
-                        startIcon={saving ? <CircularProgress color="inherit" size={16} /> : <CheckCircleRoundedIcon />}
-                        type="submit"
-                        variant="contained"
-                      >
-                        {saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Publicar producto'}
-                      </Button>
-                    )}
-                  </Box>
                 </Box>
               </Fade>
             )}
@@ -846,7 +833,7 @@ export default function EmpresaProductDialog({
             {/* PASO 3: Mercado Libre Uruguay (Si está habilitado) */}
             {mercadoLibreEnabled && currentStep === 3 && (
               <Fade in timeout={200}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.25, sm: 2.2 } }}>
                   <Typography fontWeight={750} sx={{ display: 'flex', alignItems: 'center', gap: 1 }} variant="subtitle1">
                     <RocketLaunchRoundedIcon color="primary" fontSize="small" /> 4. Mercado Libre Uruguay
                   </Typography>
@@ -892,7 +879,7 @@ export default function EmpresaProductDialog({
                             </Alert>
                           )}
 
-                          <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Box className="empresa-pro-mercadolibre-search" sx={{ display: 'flex', gap: 1 }}>
                             <TextField
                               fullWidth
                               label="Buscar categoría sugerida en Mercado Libre"
@@ -929,7 +916,7 @@ export default function EmpresaProductDialog({
 
                           {mercadoLibreForm.categoryId && (
                             <>
-                              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
+                              <Box className="empresa-pro-mercadolibre-attributes" sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
                                 <TextField
                                   fullWidth
                                   helperText="Nombre genérico de la familia."
@@ -1015,19 +1002,6 @@ export default function EmpresaProductDialog({
                     </>
                   )}
 
-                  <Box sx={{ pt: 1, display: 'flex', justifyContent: 'space-between' }}>
-                    <Button onClick={() => setCurrentStep(2)} startIcon={<ArrowBackRoundedIcon />}>
-                      Atrás
-                    </Button>
-                    <Button
-                      disabled={saving || !nameValid || !priceValid || !descValid}
-                      startIcon={saving ? <CircularProgress color="inherit" size={16} /> : <CheckCircleRoundedIcon />}
-                      type="submit"
-                      variant="contained"
-                    >
-                      {saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Publicar producto'}
-                    </Button>
-                  </Box>
                 </Box>
               </Fade>
             )}
@@ -1134,18 +1108,49 @@ export default function EmpresaProductDialog({
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: '14px 24px', borderTop: '1px solid var(--line-soft)' }}>
-          <Button disabled={saving} onClick={handleClose}>
-            Cancelar
-          </Button>
-          <Button
-            disabled={saving || !nameValid || !priceValid || !descValid}
-            startIcon={saving ? <CircularProgress color="inherit" size={16} /> : null}
-            type="submit"
-            variant="contained"
-          >
-            {saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto'}
-          </Button>
+        <DialogActions
+          className="empresa-pro-dialog-actions"
+          disableSpacing
+          sx={{ gap: 1, justifyContent: 'space-between', p: '14px 24px', borderTop: '1px solid var(--line-soft)' }}
+        >
+          <Box className="empresa-pro-dialog-navigation">
+            {currentStep > 0 ? (
+              <Button
+                aria-label={`Atrás: ${steps[currentStep - 1].label}`}
+                disabled={saving}
+                onClick={() => setCurrentStep((step) => Math.max(step - 1, 0))}
+                startIcon={<ArrowBackRoundedIcon />}
+                type="button"
+              >
+                Atrás
+              </Button>
+            ) : null}
+            {currentStep < steps.length - 1 ? (
+              <Button
+                aria-label={`Siguiente: ${steps[currentStep + 1].label}`}
+                disabled={saving || (currentStep === 0 && (!nameValid || !storeValid)) || (currentStep === 1 && !priceValid)}
+                endIcon={<ArrowForwardRoundedIcon />}
+                onClick={() => setCurrentStep((step) => Math.min(step + 1, steps.length - 1))}
+                type="button"
+                variant={currentStep === 2 ? 'outlined' : 'contained'}
+              >
+                Siguiente
+              </Button>
+            ) : null}
+          </Box>
+          <Box className="empresa-pro-dialog-actions-primary">
+            <Button disabled={saving} onClick={handleClose} type="button">
+              Cancelar
+            </Button>
+            <Button
+              disabled={saving || !nameValid || !priceValid || !descValid}
+              startIcon={saving ? <CircularProgress color="inherit" size={16} /> : null}
+              type="submit"
+              variant="contained"
+            >
+              {saving ? 'Guardando…' : isEditing ? 'Guardar cambios' : 'Crear producto'}
+            </Button>
+          </Box>
         </DialogActions>
       </Box>
     </Dialog>
