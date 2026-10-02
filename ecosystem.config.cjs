@@ -1,14 +1,26 @@
+const path = require("node:path");
+const dotenv = require("dotenv");
+
+dotenv.config({ path: path.join(__dirname, ".env"), override: true });
+
+const port = Number(process.env.PORT || 5174);
+if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+  throw new Error("PORT debe ser un puerto válido entre 1024 y 65535.");
+}
+
 module.exports = {
   apps: [
     {
-      name: "vidkar-comercio-web",
-      script: "npm",
-      args: "run dev",
+      name: process.env.PM2_APP_NAME || "vidkar-comercio-web",
+      script: path.join(__dirname, "src/serve-dist.mjs"),
       cwd: __dirname,
-      interpreter: "none",
+      interpreter: process.execPath,
       autorestart: true,
+      max_memory_restart: "512M",
       env: {
-        NODE_ENV: "development",
+        HOST: "127.0.0.1",
+        NODE_ENV: "production",
+        PORT: String(port),
       },
     },
   ],

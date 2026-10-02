@@ -10,6 +10,12 @@ Cliente web independiente construido con React, MUI y Vite. Se conecta al Meteor
 4. Para habilitar la búsqueda de direcciones, configura `VITE_GOOGLE_MAPS_API_KEY` en `.env`.
 5. Arranca el cliente con `npm run dev`.
 
+### Producción con PM2
+
+El aprovisionador genera `.env` antes de compilar, ejecuta `npm run build` y arranca `ecosystem.config.cjs` con un nombre PM2 y puerto propios para cada empresa. En producción, PM2 ejecuta `src/serve-dist.mjs`, que sirve únicamente `dist` y escucha en `127.0.0.1`; Nginx se encarga del dominio, HTTPS y la ruta al puerto asignado. El modo local continúa usando `npm run dev`.
+
+También puedes compilar localmente con `npm run build` y arrancar el servidor de producción con `npm run start:production`. Para PM2, define `PM2_APP_NAME` y `PORT` en `.env` y usa `npm run start:pm2`.
+
 Para obtener la clave, crea o selecciona un proyecto en [Google Cloud Console](https://console.cloud.google.com/), configura facturación y habilita **Maps JavaScript API** y **Places API (New)**. Crea una clave de API y restríngela a los orígenes web usados por la tienda (`http://localhost:5174` y el dominio HTTPS de producción); en restricciones de API permite solo esas dos APIs. El valor `PEGA_AQUI_TU_CLAVE_DE_GOOGLE_MAPS` en el `.env` local es solo un marcador: reemplázalo por la clave real. La clave del navegador se incluye en el bundle, por eso debe quedar restringida; no es un secreto de servidor.
 
 En el checkout, la dirección seleccionada completa la calle, número y punto del mapa. También se puede ajustar el marcador a mano. Las coordenadas se conservan para enviar la orden, pero no se muestran en pantalla.
