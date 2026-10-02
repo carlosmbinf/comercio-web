@@ -12,9 +12,9 @@ Cliente web independiente construido con React, MUI y Vite. Se conecta al Meteor
 
 ### Producción con PM2
 
-El aprovisionador genera `.env` antes de compilar, ejecuta `npm run build` y arranca `ecosystem.config.cjs` con un nombre PM2 y puerto propios para cada empresa. En producción, PM2 ejecuta `src/serve-dist.mjs`, que sirve únicamente `dist` y escucha en `127.0.0.1`; Nginx se encarga del dominio, HTTPS y la ruta al puerto asignado. El modo local continúa usando `npm run dev`.
+El aprovisionador genera un `.env` por tienda con nombre PM2, hostname y puerto propios, instala también las dependencias de desarrollo (Vite) y arranca `ecosystem.config.cjs`. PM2 sirve mediante Vite sin generar `dist`: transforma los módulos al solicitarlos, escucha solo en `127.0.0.1`, desactiva HMR y permite únicamente el hostname de esa tienda. Nginx se encarga del dominio y HTTPS. El aprovisionamiento selecciona un puerto libre del rango configurado.
 
-También puedes compilar localmente con `npm run build` y arrancar el servidor de producción con `npm run start:production`. Para PM2, define `PM2_APP_NAME` y `PORT` en `.env` y usa `npm run start:pm2`.
+Este modo evita la compilación inicial, a cambio de más trabajo de CPU por solicitud que servir assets precompilados. Para compilar estáticamente de forma manual siguen disponibles `npm run build` y `npm run start:production`; el aprovisionamiento automatizado no usa esa ruta.
 
 Para obtener la clave, crea o selecciona un proyecto en [Google Cloud Console](https://console.cloud.google.com/), configura facturación y habilita **Maps JavaScript API** y **Places API (New)**. Crea una clave de API y restríngela a los orígenes web usados por la tienda (`http://localhost:5174` y el dominio HTTPS de producción); en restricciones de API permite solo esas dos APIs. El valor `PEGA_AQUI_TU_CLAVE_DE_GOOGLE_MAPS` en el `.env` local es solo un marcador: reemplázalo por la clave real. La clave del navegador se incluye en el bundle, por eso debe quedar restringida; no es un secreto de servidor.
 

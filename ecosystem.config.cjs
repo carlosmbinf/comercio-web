@@ -12,15 +12,18 @@ module.exports = {
   apps: [
     {
       name: process.env.PM2_APP_NAME || "vidkar-comercio-web",
-      script: path.join(__dirname, "src/serve-dist.mjs"),
+      script: path.join(__dirname, "node_modules/vite/bin/vite.js"),
+      args: ["--host", process.env.HOST || "127.0.0.1", "--port", String(port), "--strictPort", "--mode", "production"],
       cwd: __dirname,
       interpreter: process.execPath,
       autorestart: true,
       max_memory_restart: "512M",
       env: {
-        HOST: "127.0.0.1",
+        COMERCIO_HOST: process.env.COMERCIO_HOST || "",
+        HOST: process.env.HOST || "127.0.0.1",
         NODE_ENV: "production",
         PORT: String(port),
+        VIDKAR_PM2_RUNTIME: "1",
       },
     },
   ],
