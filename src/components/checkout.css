@@ -91,4 +91,4 @@
   .checkout-total-card,.terms-panel { padding:16px; }
   .checkout-fallback-link { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
 }
-@media(max-width:420px) { .checkout-line { align-items:flex-start; flex-wrap:wrap; } .checkout-line > .MuiTypography-root { margin-left:50px; } .checkout-dialog-actions .MuiButton-root { min-height:44px; padding-inline:13px; font-size:13px; } }
+@media(max-width:420px) { .checkout-line { align-items:flex-start; flex-wrap:wrap; } .checkout-line > .MuiTypography-root { margin-left:50px; } .checkout-dialog-actions .MuiButton-root { min-height:40px; padding-inline:12px; font-size:.8rem; } }

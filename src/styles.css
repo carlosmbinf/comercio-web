@@ -216,6 +216,78 @@ a { color: inherit; text-decoration: none; }
   .section-heading-row { align-items: flex-start; flex-direction: column; }
 }
 
+@media (max-width: 600px) {
+  .page-frame { padding-top: 18px; padding-bottom: 28px; }
+  .content-stack { gap: 20px; }
+
+  .app-root .MuiTypography-h1,
+  .MuiDialog-root .MuiTypography-h1 { font-size: clamp(1.65rem, 7vw, 2rem) !important; line-height: 1.1 !important; }
+  .app-root .MuiTypography-h2,
+  .MuiDialog-root .MuiTypography-h2 { font-size: 1.45rem !important; line-height: 1.15 !important; }
+  .app-root .MuiTypography-h3,
+  .MuiDialog-root .MuiTypography-h3 { font-size: 1.3rem !important; line-height: 1.2 !important; }
+  .app-root .MuiTypography-h4,
+  .MuiDialog-root .MuiTypography-h4 { font-size: 1.15rem !important; line-height: 1.25 !important; }
+  .app-root .MuiTypography-h5,
+  .MuiDialog-root .MuiTypography-h5 { font-size: 1.02rem !important; line-height: 1.3 !important; }
+  .app-root .MuiTypography-h6,
+  .MuiDialog-root .MuiTypography-h6 { font-size: .94rem !important; line-height: 1.3 !important; }
+  .app-root .MuiTypography-subtitle1,
+  .MuiDialog-root .MuiTypography-subtitle1 { font-size: .9rem !important; line-height: 1.4 !important; }
+  .app-root .MuiTypography-subtitle2,
+  .MuiDialog-root .MuiTypography-subtitle2 { font-size: .8rem !important; line-height: 1.35 !important; }
+  .app-root .MuiTypography-body1,
+  .MuiDialog-root .MuiTypography-body1 { font-size: .9rem !important; line-height: 1.45 !important; }
+  .app-root .MuiTypography-body2,
+  .MuiDialog-root .MuiTypography-body2 { font-size: .8rem !important; line-height: 1.4 !important; }
+  .app-root .MuiTypography-caption,
+  .MuiDialog-root .MuiTypography-caption { font-size: .7rem !important; line-height: 1.35 !important; }
+  .app-root .MuiTypography-overline,
+  .MuiDialog-root .MuiTypography-overline { font-size: .65rem !important; line-height: 1.25 !important; }
+
+  .app-root .MuiButton-root,
+  .MuiDialog-root .MuiButton-root {
+    min-height: 40px !important;
+    padding: 6px 12px !important;
+    font-size: .8rem !important;
+    line-height: 1.25 !important;
+  }
+  .app-root .MuiButton-sizeLarge,
+  .MuiDialog-root .MuiButton-sizeLarge {
+    min-height: 42px !important;
+    padding-inline: 14px !important;
+    font-size: .875rem !important;
+  }
+  .app-root .MuiButton-sizeSmall,
+  .MuiDialog-root .MuiButton-sizeSmall {
+    min-height: 32px !important;
+    padding: 4px 10px !important;
+    font-size: .75rem !important;
+  }
+  .app-root .MuiChip-label,
+  .MuiDialog-root .MuiChip-label { font-size: .72rem !important; line-height: 1.2 !important; }
+  .app-root .MuiInputBase-root,
+  .MuiDialog-root .MuiInputBase-root { font-size: .85rem !important; }
+  .app-root .MuiInputLabel-root,
+  .MuiDialog-root .MuiInputLabel-root { font-size: .78rem !important; }
+  .app-root .MuiFormHelperText-root,
+  .MuiDialog-root .MuiFormHelperText-root { font-size: .7rem !important; line-height: 1.35 !important; }
+  .app-root .MuiFormControlLabel-label,
+  .MuiDialog-root .MuiFormControlLabel-label { font-size: .8rem !important; line-height: 1.35 !important; }
+  .app-root .MuiTab-root,
+  .MuiDialog-root .MuiTab-root { min-height: 46px !important; padding-inline: 10px !important; font-size: .78rem !important; }
+  .MuiMenuItem-root { min-height: 36px; font-size: .82rem !important; }
+  .app-root .MuiAlert-message,
+  .MuiDialog-root .MuiAlert-message { font-size: .8rem !important; line-height: 1.4 !important; }
+  .MuiDialog-root .MuiDialogTitle-root { padding: 14px 16px 10px !important; font-size: 1.05rem !important; line-height: 1.25 !important; }
+
+  .app-root .mobile-nav-item {
+    min-height: 48px !important;
+    padding: 5px 3px !important;
+    font-size: .68rem !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
