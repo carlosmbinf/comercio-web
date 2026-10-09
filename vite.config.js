@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     resolve: {
+      dedupe: ['react', 'react-dom'],
       alias: [
         { find: /^react-native\/Libraries\/Renderer\/shims\/ReactNative$/, replacement: reactNativeShim },
         { find: /^react-native$/, replacement: reactNativeShim },
@@ -41,7 +42,6 @@ export default defineConfig(({ mode }) => {
       headers: googlePopupHeaders,
     },
     server: createCommerceViteServerOptions({
-      commerceHost: env.COMERCIO_HOST,
       host: env.HOST,
       mode,
       port: env.PORT,

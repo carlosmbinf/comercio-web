@@ -8,6 +8,7 @@ import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
 import ExitToAppRoundedIcon from '@mui/icons-material/ExitToAppRounded';
 import CloudSyncRoundedIcon from '@mui/icons-material/CloudSyncRounded';
+import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
 import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 
 import { isCompanyConfigured } from '../config';
@@ -18,6 +19,7 @@ import EmpresaOrdersPanel from '../components/empresa/EmpresaOrdersPanel';
 import EmpresaProductsPanel from '../components/empresa/EmpresaProductsPanel';
 import EmpresaStoresPanel from '../components/empresa/EmpresaStoresPanel';
 import EmpresaMercadoLibrePanel from '../components/empresa/EmpresaMercadoLibrePanel';
+import EmpresaFundsPanel from '../components/empresa/EmpresaFundsPanel';
 import '../styles/empresa.css';
 
 const SECTIONS = [
@@ -26,6 +28,7 @@ const SECTIONS = [
   { icon: <StorefrontRoundedIcon />, label: 'Tiendas', value: 'tiendas' },
   { icon: <CategoryRoundedIcon />, label: 'Categorías', value: 'categorias' },
   { icon: <CloudSyncRoundedIcon />, label: 'Integraciones', value: 'integraciones' },
+  { icon: <AccountBalanceWalletRoundedIcon />, label: 'Fondos y cobros', value: 'fondos' },
 ];
 
 const getUserName = (user) =>
@@ -226,6 +229,7 @@ export function EmpresaPage() {
         {section === 'tiendas' ? <EmpresaStoresPanel notify={notify} storefront={storefront} user={user} /> : null}
         {section === 'categorias' ? <EmpresaCategoriesPanel notify={notify} userId={auth.userId} /> : null}
         {section === 'integraciones' ? <EmpresaMercadoLibrePanel notify={notify} stores={storefront.stores} userId={auth.userId} /> : null}
+        {section === 'fondos' ? <EmpresaFundsPanel userId={auth.userId} /> : null}
       </Box>
     </Box>
   );

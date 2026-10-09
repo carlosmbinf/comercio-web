@@ -12,7 +12,7 @@ Cliente web independiente construido con React, MUI y Vite. Se conecta al Meteor
 
 ### Producción con PM2
 
-El aprovisionador genera un `.env` por tienda con nombre PM2, hostname y puerto propios, instala también las dependencias de desarrollo (Vite) y arranca `ecosystem.config.cjs`. PM2 sirve mediante Vite sin generar `dist`: transforma los módulos al solicitarlos, escucha solo en `127.0.0.1`, desactiva HMR y permite únicamente el hostname de esa tienda. Nginx se encarga del dominio y HTTPS. El aprovisionamiento selecciona un puerto libre del rango configurado.
+El aprovisionador genera un `.env` por tienda con nombre PM2 y puerto propios, instala también las dependencias de desarrollo (Vite) y arranca `ecosystem.config.cjs`. PM2 sirve mediante Vite sin generar `dist`: transforma los módulos al solicitarlos, escucha solo en `127.0.0.1`, desactiva HMR y acepta cualquier hostname. Nginx se encarga del dominio, HTTPS y de limitar la exposición pública del servicio. El aprovisionamiento selecciona un puerto libre del rango configurado.
 
 Este modo evita la compilación inicial, a cambio de más trabajo de CPU por solicitud que servir assets precompilados. Para compilar estáticamente de forma manual siguen disponibles `npm run build` y `npm run start:production`; el aprovisionamiento automatizado no usa esa ruta.
 

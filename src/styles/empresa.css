@@ -42,6 +42,22 @@
 .empresa-tabs-shell .MuiTab-root { min-height: 58px; font-weight: 700; }
 .empresa-tabs-shell .MuiTabs-indicator { height: 3px; border-radius: 99px; }
 .empresa-section { min-width: 0; }
+.empresa-funds { display: flex; flex-direction: column; gap: 22px; }
+.empresa-funds-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.empresa-funds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.empresa-funds-card, .empresa-funds-destination, .empresa-funds-history-row, .empresa-funds-empty { border: 1px solid var(--line-soft) !important; border-radius: 18px !important; background: var(--surface-glass) !important; }
+.empresa-funds-card .MuiCardContent-root { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
+.empresa-funds-card-heading, .empresa-funds-destination-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.empresa-funds-amount { font-weight: 850 !important; }
+.empresa-funds-amount.negative { color: #dc2626; }
+.empresa-funds-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+.empresa-funds-metrics > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 10px; border-radius: 12px; background: var(--surface-soft); }
+.empresa-funds-metrics span { color: var(--muted); font-size: .68rem; font-weight: 700; }
+.empresa-funds-metrics strong { overflow-wrap: anywhere; font-size: .8rem; }
+.empresa-funds-destination, .empresa-funds-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px; }
+.empresa-funds-history { display: flex; flex-direction: column; gap: 8px; }
+.empresa-funds-history-row { display: flex; justify-content: space-between; gap: 14px; padding: 13px 15px; }
+.empresa-funds-form { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
 .empresa-access-card { border: 1px solid var(--line-soft); border-radius: 26px !important; box-shadow: var(--shadow-soft); }
 .empresa-access-card .MuiCardContent-root { padding: clamp(22px, 4vw, 36px); }
 .empresa-access-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
@@ -110,6 +126,8 @@
   .empresa-hero-icon { width: 46px; height: 46px; border-radius: 15px; }
   .empresa-hero-icon svg { font-size: 23px; }
   .empresa-hero-metrics { gap: 10px 18px; }
+  .empresa-funds-heading { align-items: stretch; flex-direction: column; }
+  .empresa-funds-heading > .MuiButton-root { align-self: flex-start; }
   .empresa-hero-metrics > div { min-width: 80px; }
   .empresa-hero-metrics strong { font-size: .95rem; }
   .empresa-tabs-shell .MuiTab-root { min-height: 46px; padding-inline: 10px; font-size: .78rem; }
@@ -130,6 +148,7 @@
 
 @media (max-width: 520px) {
   .empresa-hero { flex-direction: column; }
+  .empresa-funds-metrics { grid-template-columns: 1fr; }
   .empresa-title-row { align-items: flex-start; flex-direction: column; }
   .empresa-heading-actions { align-items: flex-start; flex-direction: column; }
   .empresa-form-grid { grid-template-columns: 1fr; }

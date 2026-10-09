@@ -19,7 +19,6 @@ module.exports = {
       autorestart: true,
       max_memory_restart: "512M",
       env: {
-        COMERCIO_HOST: process.env.COMERCIO_HOST || "",
         HOST: process.env.HOST || "127.0.0.1",
         NODE_ENV: "production",
         PORT: String(port),
