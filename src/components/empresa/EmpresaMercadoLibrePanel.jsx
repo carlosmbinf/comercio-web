@@ -42,6 +42,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
   const [loading, setLoading] = React.useState(true);
   const [busyAction, setBusyAction] = React.useState('');
   const [error, setError] = React.useState('');
+  const [syncStateError, setSyncStateError] = React.useState('');
   const popupMessageHandler = React.useRef(null);
   const oauthCleanup = React.useRef(null);
 
@@ -55,8 +56,9 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
     try {
       const nextIntegration = await callMeteor('comercio.mercadoLibre.getEstado');
       setIntegration(nextIntegration || null);
-      const nextSyncState = await callMeteor('comercio.mercadoLibre.estadoSincronizacion').catch(() => null);
+      const nextSyncState = await callMeteor('comercio.mercadoLibre.estadoSincronizacion');
       setSyncState(nextSyncState || null);
+      setSyncStateError('');
       setSelectedStoreId((current) => current || stores[0]?._id || '');
       setError('');
     } catch (loadError) {
@@ -73,13 +75,27 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
 
   React.useEffect(() => {
     if (!integration?.enabled || !['pending', 'processing'].includes(syncState?.status)) return undefined;
-    const timer = window.setInterval(() => {
-      callMeteor('comercio.mercadoLibre.estadoSincronizacion')
-        .then(setSyncState)
-        .catch(() => null);
-    }, 1800);
-    return () => window.clearInterval(timer);
-  }, [integration?.enabled, syncState?.status]);
+    let active = true;
+    let timer;
+    const refresh = async () => {
+      try {
+        const nextState = await callMeteor('comercio.mercadoLibre.estadoSincronizacion');
+        if (!active) return;
+        setSyncState(nextState);
+        setSyncStateError('');
+        if (!['pending', 'processing'].includes(nextState?.status)) return;
+      } catch (stateError) {
+        if (!active) return;
+        setSyncStateError(getErrorMessage(stateError, 'No se pudo consultar el progreso. El estado mostrado es el último conocido; usa Actualizar estado.'));
+      }
+      if (active) timer = window.setTimeout(refresh, 1800);
+    };
+    timer = window.setTimeout(refresh, 1800);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [integration?.enabled, syncState?.status, syncState?.jobId]);
 
   React.useEffect(() => {
     if (!integration?.enabled || !(integration.sellerTags || []).includes('warehouse_management') || !selectedStoreId) {
@@ -227,7 +243,8 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
     setBusyAction('sync');
     try {
       const result = await callMeteor('comercio.mercadoLibre.sincronizarCatalogo', selectedStoreId);
-      setSyncState({ ...syncState, ...result, status: result?.status || 'pending' });
+      setSyncState({ ...result, status: result?.status || 'pending', processed: 0, failed: 0, message: 'La sincronización se iniciará en segundo plano.' });
+      setSyncStateError('');
       notify?.('La sincronización completa del catálogo se inició.');
     } catch (syncError) {
       setError(getErrorMessage(syncError, 'No se pudo iniciar la sincronización del catálogo.'));
@@ -261,6 +278,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
   const configured = integration?.configured === true;
   const enabled = integration?.enabled === true;
   const oauthAppReady = integration?.oauthApp?.configured === true;
+  const catalogAccessDenied = ['forbidden', 'missing_functional_permission', 'invalid_scopes', 'mercadolibre-access-denied', 'mercadolibre-reauthorization-required'].includes(syncState?.lastErrorCode);
   const pendingOAuthError = !configured && integration?.lastErrorCode
     ? getOAuthFailureMessage(integration.lastErrorCode)
     : '';
@@ -279,11 +297,12 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
         <Chip
           color={enabled ? 'success' : configured ? 'default' : pendingOAuthError ? 'warning' : oauthAppReady ? 'primary' : 'warning'}
           icon={enabled ? <CheckCircleOutlineRoundedIcon /> : <StorefrontRoundedIcon />}
-          label={enabled ? 'Habilitado' : configured ? 'Desactivado' : pendingOAuthError ? 'Error de autorización' : oauthAppReady ? 'Listo para vincular' : 'Conexión no configurada'}
+          label={enabled ? 'Integración habilitada' : configured ? 'Desactivado' : pendingOAuthError ? 'Error de autorización' : oauthAppReady ? 'Listo para vincular' : 'Conexión no configurada'}
         />
       </Box>
 
       {error ? <Alert onClose={() => setError('')} severity="error">{error}</Alert> : null}
+      {syncStateError ? <Alert severity="warning">No se pudo verificar el progreso. {syncStateError} El estado mostrado puede estar desactualizado.</Alert> : null}
       {!error && pendingOAuthError ? <Alert severity="warning">{pendingOAuthError}</Alert> : null}
       {integration?.status === 'reauthorization_required' ? (
         <Alert severity="warning">La autorización expiró o fue revocada. Vuelve a autorizar para reanudar catálogo y stock.</Alert>
@@ -316,13 +335,13 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
                 : 'Conecta tu cuenta de vendedor desde el sitio oficial de Mercado Libre. Tu contraseña solo se introduce allí.'}
             </Typography>
           </Box>
-          {(!configured || integration?.status === 'reauthorization_required') ? (
+          {(!configured || integration?.status === 'reauthorization_required' || catalogAccessDenied) ? (
             <Tooltip arrow describeChild title={configured
               ? 'Renueva el permiso de esta cuenta para continuar actualizando sus publicaciones.'
               : 'Abre el sitio oficial de Mercado Libre para conectar esta cuenta de vendedor.'}>
               <span>
                 <Button
-                  disabled={Boolean(busyAction) || !oauthAppReady || !integration?.oauthApp?.webReturnUrl}
+                  disabled={isSyncing || Boolean(busyAction) || !oauthAppReady || !integration?.oauthApp?.webReturnUrl}
                   onClick={connect}
                   startIcon={busyAction === 'connect' ? <CircularProgress color="inherit" size={16} /> : <LinkRoundedIcon />}
                   variant="contained"
@@ -431,12 +450,13 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
         </Paper>
       ) : null}
 
-      {enabled && syncState && syncState.status !== 'idle' ? (
-        <Alert severity={syncState.status === 'failed' || syncState.status === 'completed_with_errors' ? 'warning' : 'info'}>
+      {syncState && syncState.status !== 'idle' ? (
+        <Alert severity={syncState.status === 'failed' ? 'error' : syncState.status === 'completed_with_errors' ? 'warning' : syncState.status === 'completed' ? 'success' : 'info'}>
           <Box sx={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             <Typography component="span" fontWeight={700}>{syncState.message || 'Estado de sincronización'}</Typography>
             {Number.isFinite(Number(syncState.processed)) ? <Chip label={`${syncState.processed} procesadas`} size="small" /> : null}
             {Number.isFinite(Number(syncState.failed)) && Number(syncState.failed) > 0 ? <Chip color="warning" label={`${syncState.failed} con errores`} size="small" /> : null}
+            {syncState.lastErrorCode ? <Typography component="span" variant="body2">Código: {syncState.lastErrorCode}</Typography> : null}
             <Tooltip arrow describeChild title="Consulta de nuevo el progreso y el resultado de la última importación del catálogo.">
               <span><Button onClick={loadState} size="small" startIcon={<RefreshRoundedIcon />}>Actualizar estado</Button></span>
             </Tooltip>
@@ -445,7 +465,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       ) : null}
 
       {enabled ? (
-        <Alert severity="success">Las publicaciones importadas y los productos locales vinculados se gestionan desde <strong>Productos</strong>. Si el vendedor usa User Products o stock multiorigen, se conserva esa relación y se aplica la API correspondiente.</Alert>
+        <Alert severity="info">Las publicaciones importadas y los productos locales vinculados se gestionan desde <strong>Productos</strong>. Tener la integración habilitada no garantiza permiso para consultar todos los recursos de Mercado Libre.</Alert>
       ) : null}
     </Box>
   );
