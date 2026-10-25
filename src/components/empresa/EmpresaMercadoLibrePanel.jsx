@@ -74,7 +74,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
   }, [loadState]);
 
   React.useEffect(() => {
-    if (!integration?.enabled || !['pending', 'processing'].includes(syncState?.status)) return undefined;
+    if (!integration?.enabled || !['pending', 'processing', 'pausing'].includes(syncState?.status)) return undefined;
     let active = true;
     let timer;
     const refresh = async () => {
@@ -83,7 +83,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
         if (!active) return;
         setSyncState(nextState);
         setSyncStateError('');
-        if (!['pending', 'processing'].includes(nextState?.status)) return;
+        if (!['pending', 'processing', 'pausing'].includes(nextState?.status)) return;
       } catch (stateError) {
         if (!active) return;
         setSyncStateError(getErrorMessage(stateError, 'No se pudo consultar el progreso. El estado mostrado es el último conocido; usa Actualizar estado.'));
@@ -253,6 +253,19 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
     }
   };
 
+  const pauseSync = async () => {
+    if (!syncState?.jobId || busyAction) return;
+    setError('');
+    setBusyAction('pause');
+    try {
+      setSyncState(await callMeteor('comercio.mercadoLibre.pausarCatalogo', syncState.jobId));
+    } catch (pauseError) {
+      setError(getErrorMessage(pauseError, 'No se pudo pausar la sincronización.'));
+    } finally {
+      setBusyAction('');
+    }
+  };
+
   const saveStockLocation = async () => {
     if (!selectedStoreId || !selectedStockLocation || busyAction) return;
     const [storeId, networkNodeId] = selectedStockLocation.split('|');
@@ -274,7 +287,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
     }
   };
 
-  const isSyncing = ['pending', 'processing'].includes(syncState?.status);
+  const isSyncing = ['pending', 'processing', 'pausing'].includes(syncState?.status);
   const configured = integration?.configured === true;
   const enabled = integration?.enabled === true;
   const oauthAppReady = integration?.oauthApp?.configured === true;
@@ -457,6 +470,11 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
             {Number.isFinite(Number(syncState.processed)) ? <Chip label={`${syncState.processed} procesadas`} size="small" /> : null}
             {Number.isFinite(Number(syncState.failed)) && Number(syncState.failed) > 0 ? <Chip color="warning" label={`${syncState.failed} con errores`} size="small" /> : null}
             {syncState.lastErrorCode ? <Typography component="span" variant="body2">Código: {syncState.lastErrorCode}</Typography> : null}
+            {isSyncing ? (
+              <Button disabled={Boolean(busyAction) || syncState.status === 'pausing'} onClick={pauseSync} size="small">
+                {syncState.status === 'pausing' ? 'Pausando…' : 'Pausar sincronización'}
+              </Button>
+            ) : null}
             <Tooltip arrow describeChild title="Consulta de nuevo el progreso y el resultado de la última importación del catálogo.">
               <span><Button onClick={loadState} size="small" startIcon={<RefreshRoundedIcon />}>Actualizar estado</Button></span>
             </Tooltip>

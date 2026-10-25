@@ -1,12 +1,19 @@
 import React from 'react';
 import { Alert, Box, Button, Chip, CircularProgress, FormControl, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import RadarRoundedIcon from '@mui/icons-material/RadarRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
-import { Meteor } from '../../meteor/client';
+import { Meteor, callMeteor } from '../../meteor/client';
 import { VentasRechargeCollection } from '../../meteor/collections';
-import { formatDateTime, formatMoney, getCommerceItems } from '../../domain/commerce';
+import {
+  formatDateTime,
+  formatMoney,
+  getCommerceItems,
+  partitionCommerceOrders,
+} from '../../domain/commerce';
 import { ensureEmpresaMethodSuccess, getNextPreparationStatus } from '../../domain/empresa';
-import { callMeteor } from '../../meteor/client';
+import FinalizedOrdersTable from '../FinalizedOrdersTable';
+import '../../pages/orders.css';
 
 const STATUS_LABELS = {
   CADETEENDESTINO: 'Cadete en destino',
@@ -104,7 +111,7 @@ function OrderCard({ busy, onAdvance, onUnassign, order, storeIds }) {
   );
 }
 
-export default function EmpresaOrdersPanel({ notify, storeIds = [], userId }) {
+export default function EmpresaOrdersPanel({ notify, storeIds = [], stores = [], userId }) {
   const storeKey = [...storeIds].map(String).sort().join('|');
   const [search, setSearch] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState('ACTIVOS');
@@ -125,22 +132,28 @@ export default function EmpresaOrdersPanel({ notify, storeIds = [], userId }) {
     return { orders, ready: handle.ready() };
   }, [storeKey, userId]);
 
+  const { activeOrders, finalizedOrders } = React.useMemo(
+    () => partitionCommerceOrders(ordersState.orders),
+    [ordersState.orders],
+  );
+
   const visibleOrders = React.useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase('es');
-    return ordersState.orders.filter((order) => {
+    return activeOrders.filter((order) => {
       const matchesStatus = statusFilter === 'ACTIVOS' || order.estado === statusFilter;
       const itemText = order.items.map((item) => `${item?.producto?.name || item?.producto?.titulo || ''} ${item?.tienda?.title || ''}`).join(' ');
       const matchesSearch = !normalizedSearch || `${order._id} ${order.estado} ${itemText}`.toLocaleLowerCase('es').includes(normalizedSearch);
       return matchesStatus && matchesSearch;
     });
-  }, [ordersState.orders, search, statusFilter]);
+  }, [activeOrders, search, statusFilter]);
 
   const statusCounts = React.useMemo(() => ({
-    total: ordersState.orders.length,
-    pendientes: ordersState.orders.filter((order) => order.estado === 'PENDIENTE').length,
-    preparando: ordersState.orders.filter((order) => order.estado === 'PREPARANDO').length,
-    listos: ordersState.orders.filter((order) => order.estado === 'PREPARACION_LISTO').length,
-  }), [ordersState.orders]);
+    total: activeOrders.length,
+    pendientes: activeOrders.filter((order) => order.estado === 'PENDIENTE').length,
+    preparando: activeOrders.filter((order) => order.estado === 'PREPARANDO').length,
+    listos: activeOrders.filter((order) => order.estado === 'PREPARACION_LISTO').length,
+    finalizados: finalizedOrders.length,
+  }), [activeOrders, finalizedOrders.length]);
 
   const advanceOrder = async (order, nextStatus) => {
     const action = nextStatus === 'PREPARANDO' ? 'empezar a preparar' : 'marcar como listo para recoger';
@@ -181,8 +194,18 @@ export default function EmpresaOrdersPanel({ notify, storeIds = [], userId }) {
     <Box className="content-stack empresa-panel">
       <Box className="empresa-panel-heading">
         <Box>
-          <Typography variant="h4">Preparación de pedidos</Typography>
-          <Typography color="text.secondary" variant="body2">Avanza los pedidos cobrados hasta dejarlos listos para el cadete, como en la app.</Typography>
+          <Box className="orders-heading-title-group">
+            <Typography variant="h4">Preparación de pedidos</Typography>
+            <Chip
+              className={activeOrders.length ? 'live-orders-badge active' : 'live-orders-badge'}
+              icon={<RadarRoundedIcon fontSize="small" />}
+              label={activeOrders.length ? `${activeOrders.length} activos en tiempo real` : 'Sin activos en curso'}
+              size="small"
+            />
+          </Box>
+          <Typography color="text.secondary" variant="body2">
+            Avanza los pedidos activos como tarjetas en tiempo real y consulta las compras finalizadas en la tabla inferior.
+          </Typography>
         </Box>
       </Box>
 
@@ -190,14 +213,14 @@ export default function EmpresaOrdersPanel({ notify, storeIds = [], userId }) {
         <Paper className="empresa-metric" elevation={0}><strong>{statusCounts.total}</strong><span>Activos</span></Paper>
         <Paper className="empresa-metric" elevation={0}><strong>{statusCounts.pendientes}</strong><span>Pendientes</span></Paper>
         <Paper className="empresa-metric" elevation={0}><strong>{statusCounts.preparando}</strong><span>Preparando</span></Paper>
-        <Paper className="empresa-metric" elevation={0}><strong>{statusCounts.listos}</strong><span>Listos</span></Paper>
+        <Paper className="empresa-metric" elevation={0}><strong>{statusCounts.finalizados}</strong><span>Finalizados</span></Paper>
       </Box>
 
       <Paper className="empresa-toolbar" elevation={0}>
         <TextField
           fullWidth
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Buscar pedido o producto"
+          placeholder="Buscar pedido activo o producto"
           value={search}
           InputProps={{ startAdornment: <SearchRoundedIcon color="action" sx={{ mr: 1 }} /> }}
         />
@@ -214,22 +237,34 @@ export default function EmpresaOrdersPanel({ notify, storeIds = [], userId }) {
       {ordersState.ready && !visibleOrders.length ? (
         <Paper className="empresa-empty" elevation={0}>
           <CheckCircleOutlineRoundedIcon color="success" fontSize="large" />
-          <Typography variant="h6">No hay pedidos para mostrar</Typography>
-          <Typography color="text.secondary" variant="body2">Los pedidos cobrados de tus tiendas aparecerán aquí automáticamente.</Typography>
+          <Typography variant="h6">No hay pedidos activos para mostrar</Typography>
+          <Typography color="text.secondary" variant="body2">Los pedidos cobrados en preparación o entrega de tus tiendas aparecerán aquí como tarjetas en tiempo real.</Typography>
         </Paper>
       ) : null}
-      <Stack spacing={2}>
-        {visibleOrders.map((order) => (
-          <OrderCard
-            busy={processingId === order._id}
-            key={order._id}
-            onAdvance={advanceOrder}
-            onUnassign={unassignCadete}
-            order={order}
-            storeIds={storeKey.split('|')}
-          />
-        ))}
-      </Stack>
+      {visibleOrders.length > 0 ? (
+        <Stack spacing={2}>
+          {visibleOrders.map((order) => (
+            <OrderCard
+              busy={processingId === order._id}
+              key={order._id}
+              onAdvance={advanceOrder}
+              onUnassign={unassignCadete}
+              order={order}
+              storeIds={storeKey.split('|')}
+            />
+          ))}
+        </Stack>
+      ) : null}
+
+      <FinalizedOrdersTable
+        emptyMessage="Las compras entregadas, canceladas o cerradas de tus tiendas se mostrarán en esta tabla."
+        orders={finalizedOrders}
+        showEvidenceHistory={false}
+        storeIds={storeKey.split('|')}
+        stores={stores}
+        subtitle="Registro de compras hechas, entregadas o canceladas de tus tiendas con método de pago y detalle completo."
+        title="Historial de compras finalizadas"
+      />
     </Box>
   );
 }

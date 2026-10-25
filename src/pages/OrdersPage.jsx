@@ -1,14 +1,22 @@
 import React from 'react';
-import { Alert, Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, Paper, Typography } from '@mui/material';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import PendingActionsRoundedIcon from '@mui/icons-material/PendingActionsRounded';
+import RadarRoundedIcon from '@mui/icons-material/RadarRounded';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import { Link as RouterLink, useOutletContext } from 'react-router-dom';
 
-import { getCommerceItems, getOrderStatus, getOrdersViewState } from '../domain/commerce';
+import {
+  getCommerceItems,
+  getOrderStatus,
+  getOrdersViewState,
+  partitionCommerceOrders,
+} from '../domain/commerce';
 import { Meteor } from '../meteor/client';
 import { VentasRechargeCollection } from '../meteor/collections';
+import FinalizedOrdersTable from '../components/FinalizedOrdersTable';
 import OrderCard from '../components/OrderCard';
 import { getCommerceDisplayName } from '../config';
 import './orders.css';
@@ -17,6 +25,7 @@ const ORDERS_SUBSCRIPTION_TIMEOUT_MS = 12000;
 
 const ORDER_FIELDS = {
   _id: 1,
+  idOrder: 1,
   userId: 1,
   createdAt: 1,
   estado: 1,
@@ -30,6 +39,8 @@ const ORDER_FIELDS = {
   refundedAmount: 1,
   refundableAmount: 1,
   refundCurrency: 1,
+  'producto.type': 1,
+  'producto.status': 1,
   'producto.carritos._id': 1,
   'producto.carritos.type': 1,
   'producto.carritos.idTienda': 1,
@@ -41,8 +52,10 @@ const ORDER_FIELDS = {
   'producto.carritos.coordenadas': 1,
   'producto.carritos.nombreCalle': 1,
   'producto.carritos.numeroCasa': 1,
+  'producto.carritos.tienda.title': 1,
   'producto.carritos.producto._id': 1,
   'producto.carritos.producto.name': 1,
+  'producto.carritos.producto.titulo': 1,
   'producto.carritos.producto.descripcion': 1,
   'producto.carritos.producto.precio': 1,
   'producto.carritos.producto.monedaPrecio': 1,
@@ -99,6 +112,10 @@ export function OrdersPage() {
   const [retryVersion, setRetryVersion] = React.useState(0);
   const ordersState = useCommerceOrders(auth?.userId, storefront.storeIds, retryVersion);
   const orders = ordersState.orders;
+  const { activeOrders, finalizedOrders } = React.useMemo(
+    () => partitionCommerceOrders(orders),
+    [orders],
+  );
   const viewState = getOrdersViewState({
     ...ordersState,
     loading: Boolean(storefront.loading || ordersState.loading),
@@ -126,16 +143,16 @@ export function OrdersPage() {
         <Box>
           <Typography className="eyebrow" variant="overline">SEGUIMIENTO DE COMERCIO</Typography>
           <Typography variant="h3">Mis pedidos</Typography>
-          <Typography color="text.secondary">Revisa el estado, la entrega y los comprobantes de tus compras en esta empresa.</Typography>
+          <Typography color="text.secondary">Revisa el estado en tiempo real de tus compras activas y consulta el historial finalizado en tabla.</Typography>
         </Box>
         <Box className="orders-hero-icon"><HistoryRoundedIcon /></Box>
       </Box>
 
       {viewState === 'history' || viewState === 'empty' ? <Box className="orders-metrics">
         <Paper className="order-metric" elevation={0}><Box className="order-metric-icon violet"><ShoppingBagOutlinedIcon /></Box><Box><Typography className="order-metric-value">{orders.length}</Typography><Typography color="text.secondary" variant="caption">PEDIDOS</Typography></Box></Paper>
-        <Paper className="order-metric" elevation={0}><Box className="order-metric-icon orange"><PendingActionsRoundedIcon /></Box><Box><Typography className="order-metric-value">{pendingCount}</Typography><Typography color="text.secondary" variant="caption">PENDIENTES</Typography></Box></Paper>
+        <Paper className="order-metric" elevation={0}><Box className="order-metric-icon orange"><PendingActionsRoundedIcon /></Box><Box><Typography className="order-metric-value">{activeOrders.length || pendingCount}</Typography><Typography color="text.secondary" variant="caption">ACTIVOS</Typography></Box></Paper>
         <Paper className="order-metric" elevation={0}><Box className="order-metric-icon blue"><LocalShippingOutlinedIcon /></Box><Box><Typography className="order-metric-value">{inRouteCount}</Typography><Typography color="text.secondary" variant="caption">EN REPARTO</Typography></Box></Paper>
-        <Paper className="order-metric" elevation={0}><Box className="order-metric-icon green"><HistoryRoundedIcon /></Box><Box><Typography className="order-metric-value">{deliveredCount}</Typography><Typography color="text.secondary" variant="caption">ENTREGADOS</Typography></Box></Paper>
+        <Paper className="order-metric" elevation={0}><Box className="order-metric-icon green"><CheckCircleOutlineRoundedIcon /></Box><Box><Typography className="order-metric-value">{deliveredCount}</Typography><Typography color="text.secondary" variant="caption">ENTREGADOS</Typography></Box></Paper>
       </Box> : null}
 
       {viewState === 'loading' ? (
@@ -162,10 +179,53 @@ export function OrdersPage() {
 
       {viewState === 'history' ? (
         <>
-          <Box className="orders-list-heading"><Typography variant="h5">Historial de compras</Typography><Typography color="text.secondary" variant="body2">{user?.username ? `Cuenta @${user.username}` : 'Tu cuenta'}</Typography></Box>
-          <Box className="orders-list">
-            {orders.map((sale) => <OrderCard key={sale._id} sale={sale} storeIds={storefront.storeIds} />)}
+          <Box className="active-orders-block">
+            <Box className="orders-list-heading">
+              <Box className="orders-heading-title-group">
+                <Typography variant="h5">Compras activas</Typography>
+                <Chip
+                  className={activeOrders.length ? 'live-orders-badge active' : 'live-orders-badge'}
+                  icon={<RadarRoundedIcon fontSize="small" />}
+                  label={activeOrders.length ? `${activeOrders.length} en tiempo real` : 'Sin pedidos en curso'}
+                  size="small"
+                />
+              </Box>
+              <Typography color="text.secondary" variant="body2">
+                {user?.username ? `Cuenta @${user.username}` : 'Seguimiento en vivo'}
+              </Typography>
+            </Box>
+
+            {activeOrders.length > 0 ? (
+              <Box className="orders-list">
+                {activeOrders.map((sale) => (
+                  <OrderCard key={sale._id} sale={sale} storeIds={storefront.storeIds} />
+                ))}
+              </Box>
+            ) : (
+              <Paper className="active-orders-empty-banner" elevation={0}>
+                <Box className="active-orders-empty-icon">
+                  <LocalShippingOutlinedIcon />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography fontWeight={750} variant="subtitle1">
+                    No hay compras activas en proceso
+                  </Typography>
+                  <Typography color="text.secondary" variant="body2">
+                    Los pedidos pendientes de pago, en preparación o en reparto aparecerán aquí como tarjetas con seguimiento en tiempo real.
+                  </Typography>
+                </Box>
+              </Paper>
+            )}
           </Box>
+
+          <FinalizedOrdersTable
+            orders={finalizedOrders}
+            showEvidenceHistory
+            storeIds={storefront.storeIds}
+            stores={storefront.stores}
+            subtitle="Compras entregadas, canceladas o cerradas con su estado, método de pago y acceso a toda la información del pedido."
+            title="Historial de compras"
+          />
         </>
       ) : null}
     </Box>

@@ -2,11 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  buildOrderRowSummary,
+  formatMoney,
+  formatPaymentMethod,
   getCartConflicts,
   getCommerceItems,
   getOrdersViewState,
   getOrderStatus,
-  formatMoney,
+  isFinalizedOrder,
+  partitionCommerceOrders,
   resolveCompanyOwnerId,
   selectCompanyCartItems,
   selectCompanyProducts,
@@ -82,6 +86,63 @@ test('filtra detalles de una venta y clasifica estados de compra', () => {
   assert.equal(getOrderStatus(sale), 'EN_RUTA');
   assert.equal(getOrderStatus({ isCancelada: true }), 'CANCELADA');
   assert.equal(getOrderStatus({ isCobrado: false }), 'PENDIENTE_PAGO');
+});
+
+test('separa pedidos activos en tarjetas y finalizados en tabla con resumen completo', () => {
+  const activePending = { _id: 'act-1', estado: 'PENDIENTE', isCobrado: false, isCancelada: false, metodoPago: 'EFECTIVO' };
+  const activeRoute = { _id: 'act-2', estado: 'ENCAMINO', isCobrado: true, isCancelada: false, metodoPago: 'PAYPAL' };
+  const delivered = {
+    _id: 'fin-1',
+    estado: 'ENTREGADO',
+    isCobrado: true,
+    isCancelada: false,
+    metodoPago: 'MERCADOPAGO',
+    cobrado: 36.76,
+    monedaCobrado: 'UYU',
+    producto: {
+      carritos: [
+        {
+          type: 'COMERCIO',
+          idTienda: 'store-a',
+          cantidad: 2,
+          cobrarUSD: 150,
+          monedaACobrar: 'CUP',
+          nombre: 'Carlos Medina',
+          nombreCalle: 'Colorado',
+          numeroCasa: '2319',
+          producto: { name: 'Pizza cubana', precio: 150, monedaPrecio: 'CUP' },
+        },
+      ],
+    },
+  };
+  const cancelled = { _id: 'fin-2', estado: 'PENDIENTE_ENTREGA', isCobrado: false, isCancelada: true, metodoPago: 'EFECTIVO' };
+  const refundedFull = { _id: 'fin-3', estado: 'PREPARANDO', isCobrado: true, isCancelada: false, refundStatus: 'FULL', metodoPago: 'PAYPAL' };
+
+  assert.equal(isFinalizedOrder(activePending), false);
+  assert.equal(isFinalizedOrder(activeRoute), false);
+  assert.equal(isFinalizedOrder(delivered), true);
+  assert.equal(isFinalizedOrder(cancelled), true);
+  assert.equal(isFinalizedOrder(refundedFull), true);
+
+  const partitioned = partitionCommerceOrders([activePending, delivered, activeRoute, cancelled, refundedFull]);
+  assert.deepEqual(partitioned.activeOrders.map((order) => order._id), ['act-1', 'act-2']);
+  assert.deepEqual(partitioned.finalizedOrders.map((order) => order._id), ['fin-1', 'fin-2', 'fin-3']);
+
+  const paymentMeta = formatPaymentMethod(delivered);
+  assert.equal(paymentMeta.code, 'MERCADOPAGO');
+  assert.equal(paymentMeta.label, 'Mercado Pago');
+  assert.equal(paymentMeta.collectionLabel, 'Cobrado');
+
+  const summary = buildOrderRowSummary(delivered, ['store-a'], [{ _id: 'store-a', title: 'Pizzería la cubana' }]);
+  assert.equal(summary.shortId, '#FIN-1');
+  assert.equal(summary.status, 'ENTREGADO');
+  assert.equal(summary.itemCount, 2);
+  assert.equal(summary.primaryProduct, 'Pizza cubana');
+  assert.equal(summary.storesSummary, 'Pizzería la cubana');
+  assert.equal(summary.deliveryAddress, 'Colorado · 2319');
+  assert.equal(summary.subtotalFormatted, '300.00 CUP');
+  assert.equal(summary.chargedFormatted, '36.76 UYU');
+  assert.equal(summary.showChargedDifference, true);
 });
 
 test('distingue carga, fallo y estado vacío del historial de pedidos', () => {

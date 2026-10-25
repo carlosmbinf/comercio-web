@@ -224,7 +224,7 @@ export function EmpresaPage() {
       </Paper>
 
       <Box className="empresa-section" role="tabpanel">
-        {section === 'pedidos' ? <EmpresaOrdersPanel notify={notify} storeIds={storefront.storeIds} userId={auth.userId} /> : null}
+        {section === 'pedidos' ? <EmpresaOrdersPanel notify={notify} storeIds={storefront.storeIds} stores={storefront.stores} userId={auth.userId} /> : null}
         {section === 'productos' ? <EmpresaProductsPanel notify={notify} storefront={storefront} user={user} /> : null}
         {section === 'tiendas' ? <EmpresaStoresPanel notify={notify} storefront={storefront} user={user} /> : null}
         {section === 'categorias' ? <EmpresaCategoriesPanel notify={notify} userId={auth.userId} /> : null}
