@@ -20,7 +20,7 @@ function normalizeImageUrl(value) {
   }
 }
 
-export default function ProductCard({ cartBlocked, cartReady, onAdd, onNotify, product, store }) {
+export default function ProductCard({ cartBlocked, cartReady, compact = true, onAdd, onNotify, product, store }) {
   const [images, setImages] = React.useState(() => {
     const legacyUrl = normalizeImageUrl(product?.imageUrl || product?.urlImagen || product?.imagenUrl || '');
     return legacyUrl ? [{ id: `legacy-${product?._id}`, url: legacyUrl }] : [];
@@ -32,12 +32,13 @@ export default function ProductCard({ cartBlocked, cartReady, onAdd, onNotify, p
   const available = isMadeToOrder || stock > 0;
   const productName = product?.name || 'Producto de comercio';
   const availabilityLabel = isMadeToOrder
-    ? 'Hecho por encargo'
+    ? 'Por encargo'
     : stock === 0
       ? 'Agotado'
       : stock <= 5
-        ? `${stock} disponibles`
-        : 'Disponible';
+        ? `Quedan ${stock}`
+        : `${stock} disp.`;
+  const statusTone = isMadeToOrder ? 'violet' : stock === 0 ? 'muted' : stock <= 5 ? 'orange' : 'green';
 
   React.useEffect(() => {
     let active = true;
@@ -87,7 +88,7 @@ export default function ProductCard({ cartBlocked, cartReady, onAdd, onNotify, p
 
   return (
     <>
-      <Card className="product-card" elevation={0}>
+      <Card className={compact ? 'product-card compact' : 'product-card comfortable'} elevation={0}>
         <CardActionArea
           aria-label={`Ver detalles de ${productName}`}
           className="product-card-action"
@@ -105,43 +106,46 @@ export default function ProductCard({ cartBlocked, cartReady, onAdd, onNotify, p
               images={images}
             />
             {isMadeToOrder ? (
-              <Chip className="product-ribbon" icon={<LocalFloristOutlinedIcon />} label="Por encargo" size="small" />
+              <Chip className="product-ribbon" icon={<LocalFloristOutlinedIcon />} label="Encargo" size="small" />
             ) : stock <= 5 ? (
               <Chip
                 className="product-stock-chip"
-                color={stock === 0 ? 'default' : 'success'}
-                label={stock === 0 ? 'Agotado' : `Últimas ${stock} unid.`}
+                color={stock === 0 ? 'default' : 'warning'}
+                label={stock === 0 ? 'Agotado' : `Últimas ${stock}`}
                 size="small"
               />
             ) : null}
           </Box>
           <CardContent className="product-content">
-            <Typography className="product-store-name" noWrap variant="caption">
-              {store?.title || store?.name || 'Comercio'}
-            </Typography>
-            <Typography className="product-name" title={productName} variant="subtitle1">
+            <Box className="product-card-meta-top">
+              <Typography className="product-store-name" noWrap variant="caption">
+                {store?.title || store?.name || 'Comercio'}
+              </Typography>
+              <span className={`product-availability-pill ${statusTone}`}>
+                {availabilityLabel}
+              </span>
+            </Box>
+            <Typography className="product-name" title={productName} variant="subtitle2">
               {productName}
             </Typography>
-            <Box className="product-card-summary">
-              <Typography className="product-price" variant="h6">
-                {formatMoney(product?.precio, product?.monedaPrecio || 'USD')}
-              </Typography>
-              <Typography className="product-availability" color="text.secondary" variant="caption">
-                {availabilityLabel}
-              </Typography>
-            </Box>
           </CardContent>
         </CardActionArea>
-        <Box className="product-card-footer">
+
+        <Box className="product-card-bottom-bar">
+          <Box className="product-price-block">
+            <Typography className="product-price" variant="subtitle1">
+              {formatMoney(product?.precio, product?.monedaPrecio || 'USD')}
+            </Typography>
+          </Box>
           <Button
             aria-label={available ? `Elegir cantidad de ${productName}` : `Ver detalles de ${productName}`}
             className="product-open-button"
-            fullWidth
             onClick={() => setDialogOpen(true)}
-            startIcon={available ? <AddRoundedIcon /> : undefined}
+            size="small"
+            startIcon={available ? <AddRoundedIcon fontSize="small" /> : undefined}
             variant={available ? 'contained' : 'outlined'}
           >
-            {available ? 'Elegir cantidad' : 'Ver detalles'}
+            {available ? 'Pedir' : 'Ver'}
           </Button>
         </Box>
       </Card>
