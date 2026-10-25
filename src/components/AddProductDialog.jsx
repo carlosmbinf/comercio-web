@@ -102,32 +102,48 @@ export default function AddProductDialog({
   return (
     <Dialog
       aria-describedby="product-dialog-description"
-      className={isDarkMode ? 'product-dialog product-dialog-dark' : 'product-dialog'}
+      className={`product-dialog catalog-overlay mode-${theme.palette.mode}${isDarkMode ? ' product-dialog-dark' : ''}`}
       fullWidth
       maxWidth="sm"
       onClose={handleClose}
       open={open}
     >
-      <DialogTitle className="product-dialog-title" component="div">
-        <Box className="product-dialog-heading">
-          <Box className="product-dialog-heading-copy">
-            <Typography className="product-dialog-store" noWrap variant="overline">
-              {store?.title || store?.name || 'Tienda'}
-            </Typography>
-            <Typography className="product-dialog-name" component="h2" variant="h5">
-              {productName}
-            </Typography>
-            <Typography className="product-dialog-unit-price" variant="h6">
-              {formatMoney(price, currency)} <span>/ unidad</span>
-            </Typography>
+      <Box className="product-dialog-hero">
+        <ProductImageCarousel
+          alt={productName}
+          className="product-dialog-gallery"
+          fallback={(
+            <Box className="product-image-fallback product-dialog-hero-fallback">
+              <span>{productName.trim().slice(0, 1).toUpperCase()}</span>
+            </Box>
+          )}
+          imageClassName="product-dialog-hero-image"
+          images={images}
+        />
+        <DialogTitle className="product-dialog-title" component="div">
+          <Box className="product-dialog-heading">
+            <Box className="product-dialog-heading-copy">
+              <Box className="product-dialog-meta-row">
+                <Typography className="product-dialog-store" noWrap variant="overline">
+                  {store?.title || store?.name || 'Tienda'}
+                </Typography>
+                <Chip className="product-dialog-availability" color={availabilityColor} label={availabilityLabel} size="small" />
+              </Box>
+              <Typography className="product-dialog-name" component="h2" variant="h5">
+                {productName}
+              </Typography>
+              <Typography className="product-dialog-unit-price" variant="h6">
+                {formatMoney(price, currency)} <span>/ unidad</span>
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-        <IconButton aria-label="Cerrar detalle del producto" className="product-dialog-close" disabled={adding} onClick={handleClose}>
-          <CloseRoundedIcon />
-        </IconButton>
-      </DialogTitle>
+          <IconButton aria-label="Cerrar detalle del producto" className="product-dialog-close" disabled={adding} onClick={handleClose}>
+            <CloseRoundedIcon />
+          </IconButton>
+        </DialogTitle>
+      </Box>
       <DialogContent className="product-dialog-content">
-        {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+        {error ? <Alert severity="error" sx={{ mb: 0.5 }}>{error}</Alert> : null}
         {auth?.userId && cartBlocked ? (
           <Alert severity="warning">Tu carrito tiene una compra incompatible. Retírala o finalízala antes de continuar.</Alert>
         ) : null}
@@ -135,17 +151,9 @@ export default function AddProductDialog({
           <Alert severity="info">Sincronizando el carrito…</Alert>
         ) : null}
 
-        <ProductImageCarousel
-          alt={productName}
-          className="product-dialog-gallery"
-          fallback={<span className="product-dialog-gallery-fallback">{productName.trim().slice(0, 1).toUpperCase()}</span>}
-          images={images}
-        />
-
         <Box className="product-detail-description">
           <Box className="product-detail-heading">
             <Typography className="product-detail-label" variant="subtitle2">Descripción del producto</Typography>
-            <Chip color={availabilityColor} label={availabilityLabel} size="small" />
           </Box>
           <Typography className="product-full-description" id="product-dialog-description" variant="body2">
             {description || 'El comercio todavía no ha añadido una descripción para este producto.'}
@@ -153,17 +161,17 @@ export default function AddProductDialog({
         </Box>
 
         {loadingSpecifications || specifications.length > 0 ? (
-          <Box className="product-detail-description" aria-live="polite">
+          <Box className="product-detail-description product-specs-panel" aria-live="polite">
             <Typography className="product-detail-label" component="h3" variant="subtitle2">Características del producto</Typography>
             {loadingSpecifications ? (
               <Typography color="text.secondary" variant="body2">Cargando características…</Typography>
             ) : (
-              <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'minmax(100px, 1fr) 2fr', gap: 1, m: 0 }}>
+              <Box className="product-specs-grid" component="dl">
                 {specifications.map(({ label, value }) => (
-                  <React.Fragment key={label}>
-                    <Typography component="dt" color="text.secondary" variant="body2">{label}</Typography>
-                    <Typography component="dd" sx={{ m: 0, overflowWrap: 'anywhere' }} variant="body2">{value}</Typography>
-                  </React.Fragment>
+                  <Box className="product-spec-row" key={label}>
+                    <Typography className="product-spec-term" component="dt" color="text.secondary" variant="body2">{label}</Typography>
+                    <Typography className="product-spec-value" component="dd" variant="body2">{value}</Typography>
+                  </Box>
                 ))}
               </Box>
             )}
@@ -231,7 +239,7 @@ export default function AddProductDialog({
         <Box aria-live="polite" className="add-product-total" role="status">
           <Box className="detail-icon"><LocalMallOutlinedIcon /></Box>
           <Box className="add-product-total-copy">
-            <Typography color="text.secondary" variant="caption">TOTAL ESTIMADO</Typography>
+            <Typography className="add-product-total-label" color="text.secondary" variant="caption">TOTAL ESTIMADO</Typography>
             <Typography className="add-product-total-value" variant="h5">
               {formatMoney(total, currency)}
             </Typography>
@@ -242,8 +250,9 @@ export default function AddProductDialog({
         </Box>
       </DialogContent>
       <DialogActions className="product-dialog-actions">
-        <Button disabled={adding} onClick={handleClose} variant="text">Seguir mirando</Button>
+        <Button className="product-dialog-secondary-btn" disabled={adding} onClick={handleClose} variant="outlined">Seguir mirando</Button>
         <Button
+          className="product-dialog-primary-btn"
           disabled={!quantityValid || adding || Boolean(auth?.userId && (!cartReady || cartBlocked))}
           onClick={submit}
           startIcon={adding ? null : <AddRoundedIcon />}

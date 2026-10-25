@@ -20,8 +20,11 @@
 .product-image-carousel-slide {
   position: relative;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   flex: 0 0 100%;
   min-width: 0;
+  min-height: 0;
   height: 100%;
   place-items: center;
   overflow: hidden;
@@ -32,6 +35,8 @@
   display: block;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   object-fit: contain;
 }
 .product-image-carousel-arrow.MuiIconButton-root {
@@ -73,7 +78,22 @@
   background: rgba(15,23,42,.48);
 }
 .product-image-carousel-empty svg { font-size: 40px; }
-.product-dialog-gallery { height: clamp(170px, 31vh, 250px); min-height: 170px; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--surface-soft); }
+.product-dialog-gallery {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.product-dialog-gallery .product-image-carousel-slide { padding: 0; }
+.product-dialog-gallery .product-image-carousel-slide img,
+.product-dialog-hero-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
 .product-dialog-gallery-fallback { display: grid; width: 72px; height: 72px; place-items: center; border-radius: 22px; color: #fff; background: linear-gradient(140deg,#a482ed,#6942cd); box-shadow: 0 15px 35px rgba(105,66,205,.23); font: 800 30px 'Manrope',sans-serif; }
 
 @media (max-width: 600px) {
