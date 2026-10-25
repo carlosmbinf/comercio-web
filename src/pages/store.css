@@ -152,6 +152,13 @@
   color: #fff !important;
 }
 
+.subheader-cat-chip.more {
+  border-style: dashed !important;
+  color: var(--accent) !important;
+  border-color: rgba(117, 73, 223, .32) !important;
+  background: var(--accent-soft) !important;
+}
+
 .subheader-stores-strip {
   display: flex;
   align-items: center;
@@ -629,6 +636,44 @@
 }
 
 .catalog-empty .empty-state-icon { margin: 0; }
+
+.catalog-load-more-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding: 14px 18px;
+  border: 1px solid var(--line-soft);
+  border-radius: 18px !important;
+  background: var(--mui-palette-background-paper, #fff) !important;
+}
+
+.catalog-load-more-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.catalog-load-more-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalog-load-more-btn {
+  border-radius: 999px !important;
+  padding-inline: 18px !important;
+  font-weight: 800 !important;
+}
+
+.catalog-collapse-btn {
+  border-radius: 999px !important;
+  font-weight: 750 !important;
+}
 
 /* ==========================================================================
    DRAWER LATERAL DE FILTROS

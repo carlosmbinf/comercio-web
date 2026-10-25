@@ -9,6 +9,8 @@ import { formatMoney } from '../domain/commerce';
 import AddProductDialog from './AddProductDialog';
 import ProductImageCarousel from './ProductImageCarousel';
 
+const productImagesCache = new Map();
+
 function normalizeImageUrl(value) {
   if (typeof value !== 'string' || !value.trim()) return '';
   const replaced = value.trim().replace(/^http:\/\/localhost:3000/i, METEOR_HTTP_URL);
@@ -21,9 +23,13 @@ function normalizeImageUrl(value) {
 }
 
 export default function ProductCard({ cartBlocked, cartReady, compact = true, onAdd, onNotify, product, store }) {
+  const cardRef = React.useRef(null);
+  const productId = String(product?._id || '');
+  const [isVisible, setIsVisible] = React.useState(() => productImagesCache.has(productId));
   const [images, setImages] = React.useState(() => {
+    if (productImagesCache.has(productId)) return productImagesCache.get(productId);
     const legacyUrl = normalizeImageUrl(product?.imageUrl || product?.urlImagen || product?.imagenUrl || '');
-    return legacyUrl ? [{ id: `legacy-${product?._id}`, url: legacyUrl }] : [];
+    return legacyUrl ? [{ id: `legacy-${productId}`, url: legacyUrl }] : [];
   });
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [adding, setAdding] = React.useState(false);
@@ -41,17 +47,48 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
   const statusTone = isMadeToOrder ? 'violet' : stock === 0 ? 'muted' : stock <= 5 ? 'orange' : 'green';
 
   React.useEffect(() => {
+    if (isVisible || typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return undefined;
+    }
+    const element = cardRef.current;
+    if (!element) {
+      setIsVisible(true);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '140px' },
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [isVisible, productId]);
+
+  React.useEffect(() => {
+    if (!productId || !isVisible) return undefined;
+    if (productImagesCache.has(productId)) {
+      setImages(productImagesCache.get(productId));
+      return undefined;
+    }
+
     let active = true;
-    setImages([]);
 
     const loadImages = async () => {
       try {
-        const result = await callMeteor('comercio.getProductImages', product._id);
+        const result = await callMeteor('comercio.getProductImages', productId);
         const gallery = (Array.isArray(result) ? result : [])
           .map((image) => ({ ...image, url: normalizeImageUrl(image?.url) }))
           .filter((image) => image.url);
-        if (active && gallery.length) {
-          setImages(gallery);
+        if (gallery.length) {
+          productImagesCache.set(productId, gallery);
+          if (active) setImages(gallery);
           return;
         }
       } catch (_error) {
@@ -59,8 +96,10 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
       }
 
       try {
-        const legacyUrl = normalizeImageUrl(await callMeteor('findImgbyProduct', product._id));
-        if (active && legacyUrl) setImages([{ id: `legacy-${product._id}`, url: legacyUrl }]);
+        const legacyUrl = normalizeImageUrl(await callMeteor('findImgbyProduct', productId));
+        const fallbackGallery = legacyUrl ? [{ id: `legacy-${productId}`, url: legacyUrl }] : [];
+        productImagesCache.set(productId, fallbackGallery);
+        if (active) setImages(fallbackGallery);
       } catch (_error) {
         if (active) setImages([]);
       }
@@ -71,7 +110,7 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
     return () => {
       active = false;
     };
-  }, [product?._id, product?.imageUrl, product?.urlImagen, product?.imagenUrl]);
+  }, [isVisible, productId, product?.imageUrl, product?.urlImagen, product?.imagenUrl]);
 
   const handleAdd = async (quantity, comment) => {
     setAdding(true);
@@ -88,7 +127,7 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
 
   return (
     <>
-      <Card className={compact ? 'product-card compact' : 'product-card comfortable'} elevation={0}>
+      <Card className={compact ? 'product-card compact' : 'product-card comfortable'} elevation={0} ref={cardRef}>
         <CardActionArea
           aria-label={`Ver detalles de ${productName}`}
           className="product-card-action"

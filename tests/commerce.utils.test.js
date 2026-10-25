@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  INITIAL_CATALOG_LIMIT,
+  buildCatalogSubscriptionQuery,
   buildOrderRowSummary,
   formatMoney,
   formatPaymentMethod,
@@ -208,4 +210,38 @@ test('el orden personal no modifica visibilidad global ni muestra productos de r
   assert.deepEqual(getVisibleCatalogProducts([
     { idCategoria: 'a' }, { idCategoria: 'b' }, { idCategoria: 'c' }, {}, { idCategoria: 'unknown' },
   ], tree).map((product) => product.idCategoria || ''), ['c', '']);
+});
+
+test('construye consultas de catálogo paginadas y acotadas bajo demanda', () => {
+  const initial = buildCatalogSubscriptionQuery({
+    storeIds: ['store-a', 'store-b'],
+  });
+  assert.equal(initial.enabled, true);
+  assert.equal(initial.limit, INITIAL_CATALOG_LIMIT);
+  assert.equal(initial.options.limit, INITIAL_CATALOG_LIMIT + 1);
+  assert.deepEqual(initial.selector, { idTienda: { $in: ['store-a', 'store-b'] } });
+
+  const scoped = buildCatalogSubscriptionQuery({
+    availability: 'available',
+    categoryIds: new Map([['comida', new Set(['comida'])]]),
+    limit: 16,
+    maxPrice: '300',
+    minPrice: '50',
+    search: 'pizza',
+    selectedCategory: 'comida',
+    selectedCurrency: 'cup',
+    selectedStore: 'store-a',
+    sort: 'price-asc',
+    storeIds: ['store-a', 'store-b'],
+  });
+
+  assert.equal(scoped.limit, 16);
+  assert.equal(scoped.options.limit, 17);
+  assert.deepEqual(scoped.options.sort, { precio: 1, name: 1 });
+  assert.equal(scoped.selector.idTienda, 'store-a');
+  assert.equal(scoped.selector.idCategoria, 'comida');
+  assert.equal(scoped.selector.monedaPrecio, 'CUP');
+  assert.deepEqual(scoped.selector.precio, { $gte: 50, $lte: 300 });
+  assert.equal(Array.isArray(scoped.selector.$and), true);
+  assert.equal(scoped.selector.$and.length, 2);
 });

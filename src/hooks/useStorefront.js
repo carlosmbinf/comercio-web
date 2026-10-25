@@ -1,7 +1,13 @@
 import { Meteor } from '../meteor/client';
 import { CategoriasComercioCollection, ProductosComercioCollection, TiendasComercioCollection } from '../meteor/collections';
 import { COMERCIO_EMPRESA_ID, isCompanyConfigured } from '../config';
-import { resolveCompanyOwnerId, selectCompanyProducts, selectCompanyStores } from '../domain/commerce';
+import {
+  INITIAL_CATALOG_LIMIT,
+  buildCatalogSubscriptionQuery,
+  resolveCompanyOwnerId,
+  selectCompanyProducts,
+  selectCompanyStores,
+} from '../domain/commerce';
 import { getVisibleCatalogProducts } from '../domain/categories';
 
 const STORE_FIELDS = {
@@ -16,7 +22,7 @@ const STORE_FIELDS = {
   ubicacion: 1,
 };
 
-const PRODUCT_FIELDS = {
+export const PRODUCT_FIELDS = {
   _id: 1,
   idTienda: 1,
   name: 1,
@@ -31,7 +37,7 @@ const PRODUCT_FIELDS = {
   idCategoria: 1,
 };
 
-export function useStorefront() {
+export function useStorefront({ subscribeCategories = true } = {}) {
   return Meteor.useTracker(() => {
     if (!isCompanyConfigured) {
       return {
@@ -54,7 +60,9 @@ export function useStorefront() {
       fields: STORE_FIELDS,
       sort: { title: 1 },
     });
-    const categoriesHandle = Meteor.subscribe('categoriasComercioCatalogo');
+    const categoriesHandle = subscribeCategories
+      ? Meteor.subscribe('categoriasComercioCatalogo')
+      : { ready: () => true };
     const categories = CategoriasComercioCollection.find({}, {
       fields: { _id: 1, nombre: 1, idCategoriaHeredada: 1, visibleEnInicio: 1, ordenInicio: 1 },
     }).fetch();
@@ -73,30 +81,109 @@ export function useStorefront() {
       ownerId,
     );
     const storeIds = stores.map((store) => String(store._id));
-    const productSelector = { idTienda: { $in: storeIds } };
-    const productsHandle = storeIds.length
-      ? Meteor.subscribe('productosComercio', productSelector, {
-          fields: PRODUCT_FIELDS,
-          sort: { name: 1 },
-        })
-      : null;
-    const products = storeIds.length && categoriesHandle.ready()
-      ? getVisibleCatalogProducts(selectCompanyProducts(
-          ProductosComercioCollection.find(productSelector, {
-            fields: PRODUCT_FIELDS,
-            sort: { name: 1 },
-          }).fetch(),
-          storeIds,
-        ), categories)
+    const cachedProducts = storeIds.length
+      ? getVisibleCatalogProducts(
+          selectCompanyProducts(
+            ProductosComercioCollection.find(
+              { idTienda: { $in: storeIds } },
+              { fields: PRODUCT_FIELDS, sort: { name: 1 } },
+            ).fetch(),
+            storeIds,
+          ),
+          categories,
+        )
       : [];
 
     return {
       categories,
       companyId: ownerId,
-      loading: !categoriesHandle.ready() || !seedHandle.ready() || !storesHandle.ready() || Boolean(productsHandle && !productsHandle.ready()),
-      products,
+      loading: !categoriesHandle.ready() || !seedHandle.ready() || !storesHandle.ready(),
+      products: cachedProducts,
       stores,
       storeIds,
     };
-  }, [COMERCIO_EMPRESA_ID]);
+  }, [COMERCIO_EMPRESA_ID, subscribeCategories]);
+}
+
+export function useCatalogProducts({
+  availability = 'all',
+  categories = [],
+  categoryIds = new Map(),
+  limit = INITIAL_CATALOG_LIMIT,
+  maxPrice = '',
+  minPrice = '',
+  search = '',
+  selectedCategory = 'all',
+  selectedCurrency = 'all',
+  selectedStore = 'all',
+  sort = 'recommended',
+  storeIds = [],
+  uncategorizedId = '__commerce-uncategorized__',
+} = {}) {
+  const storeKey = [...(storeIds || [])].map(String).sort().join('|');
+
+  return Meteor.useTracker(() => {
+    const ids = storeKey ? storeKey.split('|') : [];
+    const query = buildCatalogSubscriptionQuery({
+      availability,
+      categoryIds,
+      limit,
+      maxPrice,
+      minPrice,
+      search,
+      selectedCategory,
+      selectedCurrency,
+      selectedStore,
+      sort,
+      storeIds: ids,
+      uncategorizedId,
+    });
+
+    if (!query.enabled) {
+      return {
+        hasMore: false,
+        loading: false,
+        products: [],
+        ready: true,
+      };
+    }
+
+    const handle = Meteor.subscribe('productosComercio', query.selector, {
+      ...query.options,
+      fields: PRODUCT_FIELDS,
+    });
+
+    const fetched = getVisibleCatalogProducts(
+      selectCompanyProducts(
+        ProductosComercioCollection.find(query.selector, {
+          fields: PRODUCT_FIELDS,
+          limit: query.limit + 1,
+          sort: query.options.sort,
+        }).fetch(),
+        ids,
+      ),
+      categories,
+    );
+
+    return {
+      hasMore: fetched.length > query.limit,
+      loading: !handle.ready(),
+      products: fetched.slice(0, query.limit),
+      ready: handle.ready(),
+    };
+  }, [
+    availability,
+    categories,
+    categoryIds,
+    limit,
+    maxPrice,
+    minPrice,
+    search,
+    selectedCategory,
+    selectedCurrency,
+    selectedStore,
+    sort,
+    storeKey,
+    uncategorizedId,
+  ]);
 }

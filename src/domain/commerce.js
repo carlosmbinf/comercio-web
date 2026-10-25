@@ -268,3 +268,115 @@ export const buildOrderRowSummary = (sale, storeIds = [], stores = []) => {
       : '',
   };
 };
+
+export const INITIAL_CATALOG_LIMIT = 8;
+export const CATALOG_LIMIT_STEP = 8;
+export const MAX_CATALOG_LIMIT = 120;
+
+const escapeRegex = (value) => String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export const resolveCatalogSortOption = (sort = 'recommended') => {
+  if (sort === 'price-asc') return { precio: 1, name: 1 };
+  if (sort === 'price-desc') return { precio: -1, name: 1 };
+  if (sort === 'name') return { name: 1 };
+  return { createdAt: -1, name: 1 };
+};
+
+export const buildCatalogSubscriptionQuery = ({
+  availability = 'all',
+  categoryIds = new Map(),
+  limit = INITIAL_CATALOG_LIMIT,
+  maxPrice = '',
+  minPrice = '',
+  search = '',
+  selectedCategory = 'all',
+  selectedCurrency = 'all',
+  selectedStore = 'all',
+  sort = 'recommended',
+  storeIds = [],
+  uncategorizedId = '__commerce-uncategorized__',
+} = {}) => {
+  const allowedStores = (Array.isArray(storeIds) ? storeIds : []).map(normalizeId).filter(Boolean);
+  const safeLimit = Math.min(
+    MAX_CATALOG_LIMIT,
+    Math.max(1, Number.isFinite(Number(limit)) ? Math.floor(Number(limit)) : INITIAL_CATALOG_LIMIT),
+  );
+
+  if (!allowedStores.length) {
+    return {
+      enabled: false,
+      limit: safeLimit,
+      options: { limit: safeLimit + 1, sort: resolveCatalogSortOption(sort) },
+      selector: { _id: '__none__' },
+    };
+  }
+
+  const normalizedStore = normalizeId(selectedStore);
+  const selector = {
+    idTienda:
+      normalizedStore && normalizedStore !== 'all' && allowedStores.includes(normalizedStore)
+        ? normalizedStore
+        : { $in: allowedStores },
+  };
+
+  const andConditions = [];
+
+  if (selectedCategory && selectedCategory !== 'all') {
+    if (selectedCategory === uncategorizedId) {
+      andConditions.push({
+        $or: [{ idCategoria: { $exists: false } }, { idCategoria: null }, { idCategoria: '' }],
+      });
+    } else {
+      const mappedSet = categoryIds instanceof Map ? categoryIds.get(selectedCategory) : null;
+      const targetIds = mappedSet ? [...mappedSet].map(normalizeId).filter(Boolean) : [normalizeId(selectedCategory)];
+      selector.idCategoria = targetIds.length === 1 ? targetIds[0] : { $in: targetIds };
+    }
+  }
+
+  if (availability === 'made') {
+    selector.productoDeElaboracion = true;
+  } else if (availability === 'available') {
+    andConditions.push({
+      $or: [{ productoDeElaboracion: true }, { count: { $gt: 0 } }],
+    });
+  }
+
+  if (selectedCurrency && selectedCurrency !== 'all') {
+    selector.monedaPrecio = String(selectedCurrency).trim().toUpperCase();
+  }
+
+  const parsedMin = minPrice !== '' && minPrice !== null ? Number(minPrice) : NaN;
+  const parsedMax = maxPrice !== '' && maxPrice !== null ? Number(maxPrice) : NaN;
+  if (Number.isFinite(parsedMin) || Number.isFinite(parsedMax)) {
+    selector.precio = {};
+    if (Number.isFinite(parsedMin)) selector.precio.$gte = parsedMin;
+    if (Number.isFinite(parsedMax)) selector.precio.$lte = parsedMax;
+  }
+
+  const trimmedSearch = String(search || '').trim();
+  if (trimmedSearch) {
+    const pattern = escapeRegex(trimmedSearch);
+    andConditions.push({
+      $or: [
+        { name: { $regex: pattern, $options: 'i' } },
+        { descripcion: { $regex: pattern, $options: 'i' } },
+      ],
+    });
+  }
+
+  if (andConditions.length === 1 && !selector.$or && andConditions[0].$or) {
+    selector.$or = andConditions[0].$or;
+  } else if (andConditions.length > 0) {
+    selector.$and = andConditions;
+  }
+
+  return {
+    enabled: true,
+    limit: safeLimit,
+    options: {
+      limit: safeLimit + 1,
+      sort: resolveCatalogSortOption(sort),
+    },
+    selector,
+  };
+};

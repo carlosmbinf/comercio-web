@@ -24,6 +24,8 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import FilterAltOffRoundedIcon from '@mui/icons-material/FilterAltOffRounded';
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
@@ -36,11 +38,10 @@ import { useOutletContext } from 'react-router-dom';
 
 import { getCommerceDisplayName, isCompanyConfigured } from '../config';
 import ProductCard from '../components/ProductCard';
-import { selectStoresWithProducts } from '../domain/commerce';
-import { UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories, getPopulatedCategoryRows } from '../domain/categories';
+import { CATALOG_LIMIT_STEP, INITIAL_CATALOG_LIMIT, MAX_CATALOG_LIMIT } from '../domain/commerce';
+import { UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories } from '../domain/categories';
+import { useCatalogProducts } from '../hooks/useStorefront';
 import './store.css';
-
-const getProductCategory = (product) => String(product?.idCategoria || '').trim();
 
 const AVAILABILITY_OPTIONS = [
   { label: 'Todos los productos', shortLabel: 'Todos', value: 'all' },
@@ -55,9 +56,12 @@ const SORT_OPTIONS = [
   { label: 'Precio: mayor a menor', value: 'price-desc' },
 ];
 
+const CURRENCY_OPTIONS = ['CUP', 'UYU', 'USD'];
+
 export function StorePage() {
   const { cart, notify, storefront, user } = useOutletContext();
   const [search, setSearch] = React.useState('');
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [selectedStore, setSelectedStore] = React.useState('all');
   const [availability, setAvailability] = React.useState('all');
   const [selectedCategory, setSelectedCategory] = React.useState('all');
@@ -65,19 +69,39 @@ export function StorePage() {
   const [minPrice, setMinPrice] = React.useState('');
   const [maxPrice, setMaxPrice] = React.useState('');
   const [sort, setSort] = React.useState('recommended');
+  const [limit, setLimit] = React.useState(INITIAL_CATALOG_LIMIT);
   const [viewMode, setViewMode] = React.useState('compact');
   const [filterDrawerOpen, setFilterDrawerOpen] = React.useState(false);
+  const [categorySearch, setCategorySearch] = React.useState('');
+  const [drawerCategoryLimit, setDrawerCategoryLimit] = React.useState(10);
   const [clearingCart, setClearingCart] = React.useState(false);
   const [cartActionError, setCartActionError] = React.useState('');
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 260);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  React.useEffect(() => {
+    setLimit(INITIAL_CATALOG_LIMIT);
+  }, [
+    availability,
+    debouncedSearch,
+    maxPrice,
+    minPrice,
+    selectedCategory,
+    selectedCurrency,
+    selectedStore,
+    sort,
+  ]);
 
   const storesById = React.useMemo(
     () => new Map(storefront.stores.map((store) => [String(store._id), store])),
     [storefront.stores],
   );
-  const visibleStores = React.useMemo(
-    () => selectStoresWithProducts(storefront.stores, storefront.products),
-    [storefront.stores, storefront.products],
-  );
+  const visibleStores = storefront.stores;
   const categories = React.useMemo(
     () => getCatalogCategories(storefront.categories, user?.categoriasComercioInicio).filter((entry) => entry.visible),
     [storefront.categories, user?.categoriasComercioInicio],
@@ -86,95 +110,71 @@ export function StorePage() {
     () => new Map(categories.map((category) => [category.id, categoryIdsFor(storefront.categories, category.id)])),
     [categories, storefront.categories],
   );
-  const categoryRows = React.useMemo(
-    () => getPopulatedCategoryRows(categories, categoryIds, storefront.products),
-    [categories, categoryIds, storefront.products],
+  const categoryOptions = React.useMemo(
+    () => [...categories, { id: UNCATEGORIZED_CATEGORY_ID, label: 'Sin categoría', visible: true }],
+    [categories],
   );
-  const storeProductCounts = React.useMemo(() => {
-    const counts = new Map();
-    for (const product of storefront.products) {
-      const storeId = String(product?.idTienda || '');
-      if (!storeId) continue;
-      counts.set(storeId, (counts.get(storeId) || 0) + 1);
-    }
-    return counts;
-  }, [storefront.products]);
-  const availableCurrencies = React.useMemo(
-    () =>
-      [...new Set(storefront.products.map((product) => String(product?.monedaPrecio || 'USD').trim().toUpperCase()).filter(Boolean))].sort(),
-    [storefront.products],
-  );
-  const availableCount = storefront.products.filter(
-    (product) => product?.productoDeElaboracion || Number(product?.count || 0) > 0,
-  ).length;
-  const madeToOrderCount = storefront.products.filter((product) => Boolean(product?.productoDeElaboracion)).length;
 
-  const filteredProducts = React.useMemo(() => {
-    const normalizedSearch = search.trim().toLocaleLowerCase('es');
-    const parsedMin = minPrice !== '' ? Number(minPrice) : null;
-    const parsedMax = maxPrice !== '' ? Number(maxPrice) : null;
-
-    const filtered = storefront.products.filter((product) => {
-      const storeId = String(product?.idTienda || '');
-      const isAvailable = Boolean(product?.productoDeElaboracion) || Number(product?.count || 0) > 0;
-      const isMadeToOrder = Boolean(product?.productoDeElaboracion);
-      const category = getProductCategory(product);
-      const store = storesById.get(storeId);
-      const currency = String(product?.monedaPrecio || 'USD').trim().toUpperCase();
-      const price = Number(product?.precio || 0);
-
-      const matchesStore = selectedStore === 'all' || storeId === selectedStore;
-      const matchesAvailability =
-        availability === 'all' ||
-        (availability === 'available' && isAvailable) ||
-        (availability === 'made' && isMadeToOrder);
-      const matchesCategory =
-        selectedCategory === 'all' ||
-        (selectedCategory === UNCATEGORIZED_CATEGORY_ID ? !category : categoryIds.get(selectedCategory)?.has(category));
-      const matchesCurrency = selectedCurrency === 'all' || currency === selectedCurrency;
-      const matchesMinPrice = parsedMin === null || !Number.isFinite(parsedMin) || price >= parsedMin;
-      const matchesMaxPrice = parsedMax === null || !Number.isFinite(parsedMax) || price <= parsedMax;
-      const matchesSearch =
-        !normalizedSearch ||
-        [product?.name, product?.descripcion, store?.title].some((value) =>
-          String(value || '').toLocaleLowerCase('es').includes(normalizedSearch),
-        );
-
-      return (
-        matchesStore &&
-        matchesAvailability &&
-        matchesCategory &&
-        matchesCurrency &&
-        matchesMinPrice &&
-        matchesMaxPrice &&
-        matchesSearch
-      );
-    });
-
-    if (sort === 'price-asc') filtered.sort((a, b) => Number(a?.precio || 0) - Number(b?.precio || 0));
-    if (sort === 'price-desc') filtered.sort((a, b) => Number(b?.precio || 0) - Number(a?.precio || 0));
-    if (sort === 'name') filtered.sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'es'));
-    if (sort === 'recommended') filtered.sort((a, b) => new Date(b?.createdAt || 0) - new Date(a?.createdAt || 0));
-    return filtered;
-  }, [
+  const catalogState = useCatalogProducts({
     availability,
+    categories: storefront.categories,
     categoryIds,
+    limit,
     maxPrice,
     minPrice,
-    search,
+    search: debouncedSearch,
     selectedCategory,
     selectedCurrency,
     selectedStore,
     sort,
-    storesById,
-    storefront.products,
-  ]);
+    storeIds: storefront.storeIds,
+    uncategorizedId: UNCATEGORIZED_CATEGORY_ID,
+  });
+
+  const filteredProducts = catalogState.products;
+  const isInitialLoading = Boolean(storefront.loading || (catalogState.loading && !filteredProducts.length));
+
+  const quickCategories = React.useMemo(() => {
+    const activeCatIds = new Set(
+      [...storefront.products, ...filteredProducts]
+        .map((product) => String(product?.idCategoria || '').trim())
+        .filter(Boolean),
+    );
+    const hasUncategorized = [...storefront.products, ...filteredProducts].some(
+      (product) => !String(product?.idCategoria || '').trim(),
+    );
+
+    const prioritized = [];
+    const seen = new Set();
+    const pushUnique = (cat) => {
+      if (!cat || seen.has(cat.id)) return;
+      seen.add(cat.id);
+      prioritized.push(cat);
+    };
+
+    if (selectedCategory !== 'all') {
+      pushUnique(categoryOptions.find((cat) => cat.id === selectedCategory));
+    }
+    categories.filter((cat) => activeCatIds.has(cat.id)).forEach(pushUnique);
+    if (hasUncategorized) {
+      pushUnique({ id: UNCATEGORIZED_CATEGORY_ID, label: 'Sin categoría', visible: true });
+    }
+    categories.filter((cat) => !cat.label.includes(' › ')).slice(0, 6).forEach(pushUnique);
+
+    return prioritized.slice(0, 6);
+  }, [categories, categoryOptions, filteredProducts, selectedCategory, storefront.products]);
+
+  const filteredDrawerCategories = React.useMemo(() => {
+    const q = categorySearch.trim().toLocaleLowerCase('es');
+    if (!q) return categoryOptions;
+    return categoryOptions.filter((cat) => cat.label.toLocaleLowerCase('es').includes(q));
+  }, [categoryOptions, categorySearch]);
 
   React.useEffect(() => {
-    if (!storefront.loading && selectedCategory !== 'all' && !categoryRows.some((category) => category.id === selectedCategory)) {
+    if (!storefront.loading && selectedCategory !== 'all' && !categoryOptions.some((category) => category.id === selectedCategory)) {
       setSelectedCategory('all');
     }
-  }, [categoryRows, selectedCategory, storefront.loading]);
+  }, [categoryOptions, selectedCategory, storefront.loading]);
 
   React.useEffect(() => {
     if (!storefront.loading && selectedStore !== 'all' && !visibleStores.some((store) => String(store._id) === selectedStore)) {
@@ -197,6 +197,7 @@ export function StorePage() {
 
   const resetAllFilters = () => {
     setSearch('');
+    setDebouncedSearch('');
     setSelectedStore('all');
     setSelectedCategory('all');
     setAvailability('all');
@@ -204,6 +205,7 @@ export function StorePage() {
     setMinPrice('');
     setMaxPrice('');
     setSort('recommended');
+    setLimit(INITIAL_CATALOG_LIMIT);
   };
 
   const scrollToCatalog = () => {
@@ -218,7 +220,7 @@ export function StorePage() {
     ? visibleStores[0]?.title || visibleStores[0]?.name || getCommerceDisplayName(storefront.stores)
     : getCommerceDisplayName(storefront.stores);
   const isCartBlocked = cart.conflicts.foreignCommerceItems.length > 0 || cart.conflicts.incompatibleItems.length > 0;
-  const selectedCategoryObj = categoryRows.find((cat) => cat.id === selectedCategory);
+  const selectedCategoryObj = categoryOptions.find((cat) => cat.id === selectedCategory);
   const selectedStoreObj = visibleStores.find((st) => String(st._id) === selectedStore);
 
   const handleClearConflictingItems = async () => {
@@ -262,7 +264,7 @@ export function StorePage() {
           <TextField
             className="subheader-search"
             onChange={(event) => setSearch(event.target.value)}
-            placeholder={`Buscar en ${storeLabel} por producto, descripción o tienda…`}
+            placeholder={`Buscar en ${storeLabel} por producto o descripción…`}
             size="small"
             value={search}
             InputProps={{
@@ -327,23 +329,33 @@ export function StorePage() {
               clickable
               className={selectedCategory === 'all' ? 'subheader-cat-chip active' : 'subheader-cat-chip'}
               icon={<CategoryOutlinedIcon fontSize="small" />}
-              label={`Todo el catálogo (${storefront.products.length})`}
+              label="Destacados"
               onClick={() => selectCategoryFromSubheader('all')}
               size="small"
             />
-            {categoryRows.map((category) => {
+            {quickCategories.map((category) => {
               const active = selectedCategory === category.id;
               return (
                 <Chip
                   clickable
                   className={active ? 'subheader-cat-chip active' : 'subheader-cat-chip'}
                   key={category.id}
-                  label={`${category.label} (${category.items.length})`}
+                  label={category.label}
                   onClick={() => selectCategoryFromSubheader(category.id)}
                   size="small"
                 />
               );
             })}
+            {categoryOptions.length > quickCategories.length ? (
+              <Chip
+                clickable
+                className="subheader-cat-chip more"
+                icon={<TuneRoundedIcon fontSize="small" />}
+                label="Ver más categorías…"
+                onClick={() => setFilterDrawerOpen(true)}
+                size="small"
+              />
+            ) : null}
           </Box>
 
           {visibleStores.length > 1 ? (
@@ -360,7 +372,6 @@ export function StorePage() {
               </button>
               {visibleStores.map((store) => {
                 const id = String(store._id);
-                const count = storeProductCounts.get(id) || 0;
                 return (
                   <button
                     className={selectedStore === id ? 'subheader-store-pill active' : 'subheader-store-pill'}
@@ -370,7 +381,6 @@ export function StorePage() {
                   >
                     <StorefrontRoundedIcon sx={{ fontSize: 13 }} />
                     <span>{store.title || store.name || 'Tienda'}</span>
-                    <em>{count}</em>
                   </button>
                 );
               })}
@@ -385,7 +395,7 @@ export function StorePage() {
           <Chip
             className="hero-kicker"
             icon={<CheckCircleOutlineRoundedIcon />}
-            label="COMPRA DIRECTA Y SEGUIMIENTO EN TIEMPO REAL"
+            label="CARGA BAJO DEMANDA · SEGUIMIENTO EN TIEMPO REAL"
             size="small"
           />
           <Typography className="store-compact-banner-title" variant="h2">
@@ -401,8 +411,8 @@ export function StorePage() {
           </Typography>
           <Typography className="store-compact-banner-desc" variant="body2">
             {visibleStores.length === 1
-              ? visibleStores[0]?.descripcion || 'Selecciona tus productos, indica cuántos deseas y sigue tu pedido en vivo.'
-              : 'Filtra por categoría o sucursal, elige las unidades que necesites y recibe tu pedido con seguimiento en tiempo real.'}
+              ? visibleStores[0]?.descripcion || 'Selecciona una categoría, busca un producto o carga más resultados según lo que necesites.'
+              : 'Elige una categoría o sucursal arriba para consultar sus productos al instante sin recargar toda la tienda.'}
           </Typography>
         </Box>
 
@@ -417,8 +427,8 @@ export function StorePage() {
           <Box className="store-compact-kpi">
             <Box className="highlight-icon orange"><CheckCircleOutlineRoundedIcon fontSize="small" /></Box>
             <Box>
-              <strong>{availableCount}</strong>
-              <span>Disponibles</span>
+              <strong>{INITIAL_CATALOG_LIMIT}</strong>
+              <span>Por bloque inicial</span>
             </Box>
           </Box>
           <Box className="store-compact-kpi">
@@ -461,7 +471,7 @@ export function StorePage() {
       ) : null}
       {cartActionError ? <Alert className="cart-conflict-alert" onClose={() => setCartActionError('')} severity="error">{cartActionError}</Alert> : null}
 
-      {/* SECCIÓN PRINCIPAL DEL CATÁLOGO */}
+      {/* SECCIÓN PRINCIPAL DEL CATÁLOGO CON CARGA PROGRESIVA */}
       <section className="catalog-section" id="catalogo">
         <Box className="catalog-bar">
           <Box className="catalog-bar-summary">
@@ -470,14 +480,23 @@ export function StorePage() {
                 ? selectedCategoryObj.label
                 : selectedStoreObj
                   ? selectedStoreObj.title || selectedStoreObj.name
-                  : 'Productos disponibles'}
+                  : hasAnyFilter
+                    ? 'Resultados filtrados'
+                    : 'Selección inicial'}
             </Typography>
             <Chip
               className="catalog-count"
-              label={`${filteredProducts.length} de ${storefront.products.length} productos`}
+              label={
+                catalogState.hasMore
+                  ? `Mostrando ${filteredProducts.length} (hay más disponibles)`
+                  : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'producto' : 'productos'}`
+              }
               size="small"
               variant="outlined"
             />
+            {catalogState.loading && filteredProducts.length > 0 ? (
+              <CircularProgress size={16} sx={{ ml: 0.5 }} />
+            ) : null}
           </Box>
 
           <Box className="catalog-bar-actions">
@@ -555,9 +574,9 @@ export function StorePage() {
           </Box>
         ) : null}
 
-        {storefront.loading ? (
+        {isInitialLoading ? (
           <Box className={`product-grid ${viewMode}`} aria-label="Cargando catálogo">
-            {Array.from({ length: 10 }, (_, index) => (
+            {Array.from({ length: INITIAL_CATALOG_LIMIT }, (_, index) => (
               <Paper className="product-skeleton" elevation={0} key={index}>
                 <Skeleton animation="wave" height={118} variant="rounded" />
                 <Skeleton animation="wave" height={20} sx={{ mt: 1 }} width="65%" />
@@ -582,27 +601,77 @@ export function StorePage() {
           <Paper className="catalog-empty" elevation={0}>
             <Box className="empty-state-icon"><FilterAltOffRoundedIcon /></Box>
             <Typography variant="h5">No hay productos con esos filtros</Typography>
-            <Typography color="text.secondary">Prueba otra búsqueda o restablece los filtros para volver a ver todo el catálogo.</Typography>
+            <Typography color="text.secondary">Prueba otra categoría, cambia la búsqueda o restablece los filtros.</Typography>
             <Button onClick={resetAllFilters} startIcon={<RestartAltRoundedIcon />} variant="outlined">
               Limpiar filtros
             </Button>
           </Paper>
         ) : (
-          <Box className={`product-grid ${viewMode}`}>
-            {filteredProducts.map((product, index) => (
-              <div className="product-entry" key={product._id} style={{ animationDelay: `${Math.min(index * 25, 250)}ms` }}>
-                <ProductCard
-                  cartBlocked={isCartBlocked}
-                  cartReady={cart.ready}
-                  compact={viewMode === 'compact'}
-                  onAdd={cart.addProduct}
-                  onNotify={notify}
-                  product={product}
-                  store={storesById.get(String(product.idTienda))}
-                />
-              </div>
-            ))}
-          </Box>
+          <>
+            <Box className={`product-grid ${viewMode}`}>
+              {filteredProducts.map((product, index) => (
+                <div className="product-entry" key={product._id} style={{ animationDelay: `${Math.min(index * 20, 200)}ms` }}>
+                  <ProductCard
+                    cartBlocked={isCartBlocked}
+                    cartReady={cart.ready}
+                    compact={viewMode === 'compact'}
+                    onAdd={cart.addProduct}
+                    onNotify={notify}
+                    product={product}
+                    store={storesById.get(String(product.idTienda))}
+                  />
+                </div>
+              ))}
+            </Box>
+
+            <Paper className="catalog-load-more-bar" elevation={0}>
+              <Box className="catalog-load-more-copy">
+                <Typography fontWeight={750} variant="body2">
+                  {catalogState.hasMore
+                    ? `Mostrando ${filteredProducts.length} productos iniciales para no sobrecargar tu conexión.`
+                    : `Has visto los ${filteredProducts.length} productos de esta selección.`}
+                </Typography>
+                <Typography color="text.secondary" variant="caption">
+                  Usa las categorías del encabezado, el panel de filtros o carga más productos cuando lo necesites.
+                </Typography>
+              </Box>
+
+              <Box className="catalog-load-more-actions">
+                {limit > INITIAL_CATALOG_LIMIT ? (
+                  <Button
+                    className="catalog-collapse-btn"
+                    onClick={() => {
+                      setLimit(INITIAL_CATALOG_LIMIT);
+                      scrollToCatalog();
+                    }}
+                    size="small"
+                    startIcon={<ExpandLessRoundedIcon />}
+                    variant="text"
+                  >
+                    Ver menos
+                  </Button>
+                ) : null}
+
+                {catalogState.hasMore && limit < MAX_CATALOG_LIMIT ? (
+                  <Button
+                    className="catalog-load-more-btn"
+                    disabled={catalogState.loading}
+                    onClick={() => setLimit((current) => Math.min(MAX_CATALOG_LIMIT, current + CATALOG_LIMIT_STEP))}
+                    startIcon={
+                      catalogState.loading ? (
+                        <CircularProgress color="inherit" size={16} />
+                      ) : (
+                        <ExpandMoreRoundedIcon />
+                      )
+                    }
+                    variant="contained"
+                  >
+                    {catalogState.loading ? 'Cargando…' : `Cargar ${CATALOG_LIMIT_STEP} productos más`}
+                  </Button>
+                ) : null}
+              </Box>
+            </Paper>
+          </>
         )}
       </section>
 
@@ -620,7 +689,7 @@ export function StorePage() {
               <Box>
                 <Typography fontWeight={800} variant="subtitle1">Filtrar catálogo</Typography>
                 <Typography color="text.secondary" variant="caption">
-                  {filteredProducts.length} {filteredProducts.length === 1 ? 'producto encontrado' : 'productos encontrados'}
+                  Consulta bajo demanda · {filteredProducts.length} visibles
                 </Typography>
               </Box>
             </Box>
@@ -655,26 +724,18 @@ export function StorePage() {
             <Box className="filter-drawer-group">
               <Typography className="filter-group-label" variant="overline">Disponibilidad</Typography>
               <Stack spacing={0.75}>
-                {AVAILABILITY_OPTIONS.map((option) => {
-                  const count =
-                    option.value === 'all'
-                      ? storefront.products.length
-                      : option.value === 'available'
-                        ? availableCount
-                        : madeToOrderCount;
-                  return (
-                    <Button
-                      className={availability === option.value ? 'drawer-option-btn active' : 'drawer-option-btn'}
-                      fullWidth
-                      key={option.value}
-                      onClick={() => setAvailability(option.value)}
-                      variant="text"
-                    >
-                      <span>{option.label}</span>
-                      <Chip className="drawer-option-count" label={count} size="small" />
-                    </Button>
-                  );
-                })}
+                {AVAILABILITY_OPTIONS.map((option) => (
+                  <Button
+                    className={availability === option.value ? 'drawer-option-btn active' : 'drawer-option-btn'}
+                    fullWidth
+                    key={option.value}
+                    onClick={() => setAvailability(option.value)}
+                    variant="text"
+                  >
+                    <span>{option.label}</span>
+                    {availability === option.value ? <CheckCircleOutlineRoundedIcon fontSize="small" /> : null}
+                  </Button>
+                ))}
               </Stack>
             </Box>
 
@@ -683,6 +744,25 @@ export function StorePage() {
             {/* Categorías */}
             <Box className="filter-drawer-group">
               <Typography className="filter-group-label" variant="overline">Categorías</Typography>
+              {categoryOptions.length > 8 ? (
+                <TextField
+                  fullWidth
+                  onChange={(event) => {
+                    setCategorySearch(event.target.value);
+                    setDrawerCategoryLimit(10);
+                  }}
+                  placeholder="Buscar categoría…"
+                  size="small"
+                  value={categorySearch}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchRoundedIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              ) : null}
               <Stack spacing={0.75}>
                 <Button
                   className={selectedCategory === 'all' ? 'drawer-option-btn active' : 'drawer-option-btn'}
@@ -691,9 +771,9 @@ export function StorePage() {
                   variant="text"
                 >
                   <span>Todas las categorías</span>
-                  <Chip className="drawer-option-count" label={storefront.products.length} size="small" />
+                  {selectedCategory === 'all' ? <CheckCircleOutlineRoundedIcon fontSize="small" /> : null}
                 </Button>
-                {categoryRows.map((category) => (
+                {filteredDrawerCategories.slice(0, drawerCategoryLimit).map((category) => (
                   <Button
                     className={selectedCategory === category.id ? 'drawer-option-btn active' : 'drawer-option-btn'}
                     fullWidth
@@ -702,9 +782,18 @@ export function StorePage() {
                     variant="text"
                   >
                     <span>{category.label}</span>
-                    <Chip className="drawer-option-count" label={category.items.length} size="small" />
+                    {selectedCategory === category.id ? <CheckCircleOutlineRoundedIcon fontSize="small" /> : null}
                   </Button>
                 ))}
+                {filteredDrawerCategories.length > drawerCategoryLimit ? (
+                  <Button
+                    onClick={() => setDrawerCategoryLimit((curr) => curr + 12)}
+                    size="small"
+                    variant="text"
+                  >
+                    Ver más categorías ({filteredDrawerCategories.length - drawerCategoryLimit})
+                  </Button>
+                ) : null}
               </Stack>
             </Box>
 
@@ -721,7 +810,7 @@ export function StorePage() {
                       variant="text"
                     >
                       <span>Todas las tiendas</span>
-                      <Chip className="drawer-option-count" label={storefront.products.length} size="small" />
+                      {selectedStore === 'all' ? <CheckCircleOutlineRoundedIcon fontSize="small" /> : null}
                     </Button>
                     {visibleStores.map((store) => {
                       const id = String(store._id);
@@ -734,7 +823,7 @@ export function StorePage() {
                           variant="text"
                         >
                           <span>{store.title || store.name || 'Tienda'}</span>
-                          <Chip className="drawer-option-count" label={storeProductCounts.get(id) || 0} size="small" />
+                          {selectedStore === id ? <CheckCircleOutlineRoundedIcon fontSize="small" /> : null}
                         </Button>
                       );
                     })}
@@ -743,35 +832,32 @@ export function StorePage() {
               </>
             ) : null}
 
-            {availableCurrencies.length > 1 ? (
-              <>
-                <Divider />
-                <Box className="filter-drawer-group">
-                  <Typography className="filter-group-label" variant="overline">Moneda</Typography>
-                  <Box className="drawer-chip-row">
-                    <Chip
-                      clickable
-                      color={selectedCurrency === 'all' ? 'primary' : 'default'}
-                      label="Todas"
-                      onClick={() => setSelectedCurrency('all')}
-                      size="small"
-                      variant={selectedCurrency === 'all' ? 'filled' : 'outlined'}
-                    />
-                    {availableCurrencies.map((currency) => (
-                      <Chip
-                        clickable
-                        color={selectedCurrency === currency ? 'primary' : 'default'}
-                        key={currency}
-                        label={currency}
-                        onClick={() => setSelectedCurrency(currency)}
-                        size="small"
-                        variant={selectedCurrency === currency ? 'filled' : 'outlined'}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              </>
-            ) : null}
+            <Divider />
+
+            <Box className="filter-drawer-group">
+              <Typography className="filter-group-label" variant="overline">Moneda</Typography>
+              <Box className="drawer-chip-row">
+                <Chip
+                  clickable
+                  color={selectedCurrency === 'all' ? 'primary' : 'default'}
+                  label="Todas"
+                  onClick={() => setSelectedCurrency('all')}
+                  size="small"
+                  variant={selectedCurrency === 'all' ? 'filled' : 'outlined'}
+                />
+                {CURRENCY_OPTIONS.map((currency) => (
+                  <Chip
+                    clickable
+                    color={selectedCurrency === currency ? 'primary' : 'default'}
+                    key={currency}
+                    label={currency}
+                    onClick={() => setSelectedCurrency(currency)}
+                    size="small"
+                    variant={selectedCurrency === currency ? 'filled' : 'outlined'}
+                  />
+                ))}
+              </Box>
+            </Box>
 
             <Divider />
 
@@ -819,7 +905,7 @@ export function StorePage() {
               }}
               variant="contained"
             >
-              Ver {filteredProducts.length} productos
+              Aplicar filtros
             </Button>
           </Box>
         </Box>

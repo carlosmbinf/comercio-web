@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Box, Button, CircularProgress, Paper, Typography } from '@mui/material';
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 
 import { getCommerceDisplayName, isMeteorConfigured } from './config';
@@ -37,7 +37,8 @@ function ConnectionScreen({ companyName, mode, onRetry, error }) {
 }
 
 function StoreLayout({ mode, onToggleMode }) {
-  const storefront = useStorefront();
+  const location = useLocation();
+  const storefront = useStorefront({ subscribeCategories: location.pathname === '/' });
   const cart = useCommerceCart(storefront.storeIds);
   const [toastMessage, setToastMessage] = React.useState('');
   const notify = React.useCallback((message) => setToastMessage(String(message || '')), []);
