@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildCategoryTree, categoryIdsFor, getCatalogCategories } from '../src/domain/categories.js';
+import { buildCategoryTree, CATEGORY_SELECTION_LIMIT, categoryIdsFor, getCatalogCategories, getCategorySelectionProducts } from '../src/domain/categories.js';
 
 const categories = [
   { _id: 'root', nombre: 'Alimentos' },
@@ -10,6 +10,26 @@ const categories = [
   { _id: 'orphan', nombre: 'Oculta', idCategoriaHeredada: 'inactive' },
   { _id: 'orphan-child', nombre: 'Hija oculta', idCategoriaHeredada: 'orphan' },
 ];
+
+test('selección por categoría respeta orden aleatorio y excluye otras suscripciones', () => {
+  const products = [{ _id: 'other' }, { _id: 'first' }, { _id: 'second' }];
+  assert.deepEqual(getCategorySelectionProducts(products, ['second', 'missing', 'first', 'second']), [products[2], products[1]]);
+  assert.deepEqual(getCategorySelectionProducts(products), []);
+});
+
+test('selección por categoría nunca supera los 15 productos', () => {
+  const products = Array.from({ length: 30 }, (_, index) => ({ _id: String(index) }));
+  const selected = getCategorySelectionProducts(products, products.map(({ _id }) => _id).reverse());
+  assert.equal(CATEGORY_SELECTION_LIMIT, 15);
+  assert.equal(selected.length, 15);
+  assert.equal(selected[0]._id, '29');
+});
+
+test('portada agrupa solo por padres superiores conservando todas sus subcategorías', () => {
+  const tree = buildCategoryTree(getCatalogCategories(categories).filter(({ visible }) => visible));
+  assert.deepEqual(tree.map(({ id }) => id).sort(), ['new', 'root']);
+  assert.deepEqual([...categoryIdsFor(categories, tree.find(({ id }) => id === 'root').id)], ['root', 'child', 'grandchild']);
+});
 
 test('muestra todas por defecto y el orden personal no controla la visibilidad', () => {
   const result = getCatalogCategories(categories, [{ id: 'child', visible: false }, { id: 'root', visible: true }]);

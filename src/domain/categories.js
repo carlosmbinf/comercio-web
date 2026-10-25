@@ -1,4 +1,12 @@
 export const UNCATEGORIZED_CATEGORY_ID = '__commerce-uncategorized__';
+export const CATEGORY_SELECTION_LIMIT = 15;
+
+// Only use IDs belonging to this sample, never other subscriptions in Minimongo.
+export function getCategorySelectionProducts(products = [], productIds = []) {
+  const byId = new Map(products.map((product) => [String(product._id), product]));
+  return [...new Set(productIds)].slice(0, CATEGORY_SELECTION_LIMIT)
+    .map((id) => byId.get(String(id))).filter(Boolean);
+}
 
 export function getCatalogCategories(categories, preferences) {
   const byId = new Map((categories || []).map((category) => [String(category._id), category]));

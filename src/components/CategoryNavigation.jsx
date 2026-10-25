@@ -1,133 +1,65 @@
 import React from 'react';
-import { Box, Button, Chip, IconButton, TextField, Typography } from '@mui/material';
+import { Box, Button, Chip, IconButton, Popover, TextField, Typography, useTheme } from '@mui/material';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 const INITIAL_ROOT_LIMIT = 8;
 const SEARCH_RESULT_LIMIT = 12;
-const FLYOUT_CHILD_LIMIT = 12;
-
-function MenuBranch({ node, depth, openPath, setOpenPath, cancelClose, scheduleClose, onOpenAll, onSelect }) {
-  const hasChildren = node.children.length > 0;
-  const isOpen = openPath[depth] === node.id;
-  const openBranch = () => {
-    if (hasChildren) setOpenPath((current) => [...current.slice(0, depth), node.id]);
-  };
-  const toggleBranch = () => {
-    setOpenPath((current) => (
-      current[depth] === node.id
-        ? current.slice(0, depth)
-        : [...current.slice(0, depth), node.id]
-    ));
-  };
-
-  return (
-    <Box
-      className={`category-menu-branch depth-${Math.min(depth, 4)}${isOpen ? ' open' : ''}`}
-      key={node.id}
-      onFocus={openBranch}
-      onMouseEnter={() => {
-        cancelClose();
-        openBranch();
-      }}
-    >
-      <Button
-        aria-expanded={hasChildren ? isOpen : undefined}
-        aria-haspopup={hasChildren ? 'menu' : undefined}
-        className="category-menu-select"
-        onClick={() => (hasChildren ? openBranch() : onSelect(node.id))}
-        onFocus={openBranch}
-        title={node.label}
-        variant="text"
-      >
-        <span>{node.name || node.label}</span>
-      </Button>
-      {hasChildren ? (
-        <IconButton
-          aria-label={`${isOpen ? 'Ocultar' : 'Mostrar'} subcategorías de ${node.name || node.label}`}
-          aria-expanded={isOpen}
-          className="category-menu-expand"
-          onClick={toggleBranch}
-          onFocus={openBranch}
-          size="small"
-        >
-          <ChevronRightRoundedIcon fontSize="small" />
-        </IconButton>
-      ) : null}
-
-      {hasChildren && isOpen ? (
-        <Box
-          className="category-menu-submenu"
-          onMouseEnter={cancelClose}
-          onMouseLeave={scheduleClose}
-          role="group"
-          aria-label={`Subcategorías de ${node.name || node.label}`}
-        >
-          <Typography className="category-menu-submenu-title" variant="overline">
-            {node.name || node.label}
-          </Typography>
-          <Button
-            className="category-menu-parent-action"
-            onClick={() => onSelect(node.id)}
-            size="small"
-            variant="text"
-          >
-            Ver todos los productos de esta categoría
-          </Button>
-          {node.children.slice(0, FLYOUT_CHILD_LIMIT).map((child) => (
-            <MenuBranch
-              depth={depth + 1}
-              key={child.id}
-              node={child}
-              cancelClose={cancelClose}
-              scheduleClose={scheduleClose}
-              onOpenAll={onOpenAll}
-              onSelect={onSelect}
-              openPath={openPath}
-              setOpenPath={setOpenPath}
-            />
-          ))}
-          {node.children.length > FLYOUT_CHILD_LIMIT ? (
-            <Button className="category-menu-viewall" onClick={onOpenAll} size="small" variant="text">
-              Ver todas ({node.children.length})
-            </Button>
-          ) : null}
-        </Box>
-      ) : null}
-    </Box>
-  );
-}
 
 export function CategoryMenu({ onOpenAll, onSelect, roots = [], selectedCategory = 'all' }) {
+  const theme = useTheme();
+  const [anchorEl, setAnchorEl] = React.useState(null);
   const [openPath, setOpenPath] = React.useState([]);
-  const closeTimer = React.useRef(null);
+  const panelId = React.useId();
+  const panelRef = React.useRef(null);
   const shownRoots = roots.slice(0, 6);
-  const cancelClose = () => {
-    if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    closeTimer.current = null;
-  };
-  const scheduleClose = () => {
-    cancelClose();
-    closeTimer.current = window.setTimeout(() => setOpenPath([]), 220);
-  };
-  const selectAndClose = (categoryId) => {
-    cancelClose();
-    onSelect(categoryId);
+  const resolvedPath = React.useMemo(() => {
+    const path = [];
+    let siblings = roots;
+    for (const id of openPath) {
+      const node = siblings.find((entry) => entry.id === id);
+      if (!node?.children.length) break;
+      path.push(node);
+      siblings = node.children;
+    }
+    return path;
+  }, [openPath, roots]);
+  const currentNode = resolvedPath[resolvedPath.length - 1];
+  const closeMenu = () => {
+    setAnchorEl(null);
     setOpenPath([]);
   };
+  const selectAndClose = (categoryId) => {
+    onSelect(categoryId);
+    closeMenu();
+  };
+  const openAll = () => {
+    closeMenu();
+    onOpenAll();
+  };
+  const containsSelection = (node) => node.id === selectedCategory || node.children.some(containsSelection);
 
-  React.useEffect(() => () => cancelClose(), []);
+  React.useEffect(() => {
+    if (resolvedPath.length !== openPath.length) {
+      setOpenPath(resolvedPath.map((node) => node.id));
+      if (!resolvedPath.length) setAnchorEl(null);
+    }
+  }, [openPath.length, resolvedPath]);
+
+  React.useEffect(() => {
+    if (anchorEl) {
+      panelRef.current?.focus();
+      panelRef.current?.querySelector('.category-menu-items')?.scrollTo(0, 0);
+    }
+  }, [anchorEl, currentNode]);
 
   return (
     <Box
       className="category-menu"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) scheduleClose();
-      }}
-      onFocus={cancelClose}
-      onMouseEnter={cancelClose}
-      onMouseLeave={scheduleClose}
       role="navigation"
       aria-label="Categorías principales"
     >
@@ -139,27 +71,91 @@ export function CategoryMenu({ onOpenAll, onSelect, roots = [], selectedCategory
         size="small"
       />
       {shownRoots.map((root) => (
-        <MenuBranch
-          depth={0}
+        <Button
+          aria-controls={anchorEl && resolvedPath[0]?.id === root.id ? panelId : undefined}
+          aria-expanded={root.children.length ? Boolean(anchorEl && resolvedPath[0]?.id === root.id) : undefined}
+          aria-haspopup={root.children.length ? 'dialog' : undefined}
+          aria-pressed={containsSelection(root)}
+          className={`category-menu-select${containsSelection(root) ? ' selected' : ''}`}
+          endIcon={root.children.length ? <ExpandMoreRoundedIcon fontSize="small" /> : null}
           key={root.id}
-          node={root}
-          cancelClose={cancelClose}
-          scheduleClose={scheduleClose}
-          onOpenAll={onOpenAll}
-          onSelect={selectAndClose}
-          openPath={openPath}
-          setOpenPath={setOpenPath}
-        />
+          onClick={(event) => {
+            if (!root.children.length) return selectAndClose(root.id);
+            setAnchorEl(event.currentTarget);
+            setOpenPath([root.id]);
+          }}
+          title={root.label}
+        >
+          <span>{root.name || root.label}</span>
+        </Button>
       ))}
       {roots.length > shownRoots.length ? (
         <Chip
           clickable
           className="subheader-cat-chip more"
           label="Ver todas…"
-          onClick={onOpenAll}
+          onClick={openAll}
           size="small"
         />
       ) : null}
+      <Popover
+        anchorEl={anchorEl}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        className={`catalog-overlay mode-${theme.palette.mode}`}
+        marginThreshold={12}
+        onClose={closeMenu}
+        open={Boolean(anchorEl && currentNode)}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { className: 'category-menu-paper' } }}
+      >
+        {currentNode ? (
+          <Box
+            aria-label={`Subcategorías de ${currentNode.name || currentNode.label}`}
+            aria-modal="true"
+            className="category-menu-submenu"
+            id={panelId}
+            ref={panelRef}
+            role="dialog"
+            tabIndex={-1}
+          >
+            <Box className="category-menu-heading">
+              {resolvedPath.length > 1 ? (
+                <IconButton aria-label="Volver a la categoría anterior" onClick={() => setOpenPath((path) => path.slice(0, -1))} size="small">
+                  <ArrowBackRoundedIcon fontSize="small" />
+                </IconButton>
+              ) : null}
+              <Box className="category-menu-heading-copy">
+                <Typography className="category-menu-submenu-title" variant="caption">Explorar categorías</Typography>
+                <Typography fontWeight={800} variant="subtitle2">{currentNode.name || currentNode.label}</Typography>
+              </Box>
+              <IconButton aria-label="Cerrar categorías" onClick={closeMenu} size="small"><CloseRoundedIcon fontSize="small" /></IconButton>
+            </Box>
+            {resolvedPath.length > 1 ? (
+              <Typography className="category-menu-breadcrumb" variant="caption">
+                {resolvedPath.map((node) => node.name || node.label).join(' / ')}
+              </Typography>
+            ) : null}
+            <Button className="category-menu-parent-action" onClick={() => selectAndClose(currentNode.id)}>
+              Ver todo en esta categoría
+              {selectedCategory === currentNode.id ? <CheckRoundedIcon fontSize="small" /> : <ChevronRightRoundedIcon fontSize="small" />}
+            </Button>
+            <Box className="category-menu-items">
+              {currentNode.children.map((child) => (
+                <Button
+                  aria-pressed={containsSelection(child)}
+                  className={`category-menu-item${containsSelection(child) ? ' selected' : ''}`}
+                  key={child.id}
+                  onClick={() => child.children.length ? setOpenPath((path) => [...path, child.id]) : selectAndClose(child.id)}
+                >
+                  <span>{child.name || child.label}</span>
+                  {child.children.length ? <ChevronRightRoundedIcon fontSize="small" /> : selectedCategory === child.id ? <CheckRoundedIcon fontSize="small" /> : null}
+                </Button>
+              ))}
+            </Box>
+            <Button className="category-menu-viewall" onClick={openAll}>Todas las categorías y filtros</Button>
+          </Box>
+        ) : null}
+      </Popover>
     </Box>
   );
 }

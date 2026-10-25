@@ -1,5 +1,6 @@
+import React from 'react';
 import { Meteor } from '../meteor/client';
-import { CategoriasComercioCollection, ProductosComercioCollection, TiendasComercioCollection } from '../meteor/collections';
+import { CategoriasComercioCollection, ProductosComercioCollection, SeleccionesCatalogoCollection, TiendasComercioCollection } from '../meteor/collections';
 import { COMERCIO_EMPRESA_ID, isCompanyConfigured } from '../config';
 import {
   INITIAL_CATALOG_LIMIT,
@@ -8,7 +9,7 @@ import {
   selectCompanyProducts,
   selectCompanyStores,
 } from '../domain/commerce';
-import { getVisibleCatalogProducts } from '../domain/categories';
+import { getCategorySelectionProducts, getVisibleCatalogProducts } from '../domain/categories';
 
 const STORE_FIELDS = {
   _id: 1,
@@ -108,6 +109,7 @@ export function useStorefront({ subscribeCategories = true } = {}) {
 }
 
 export function useCatalogProducts({
+  enabled = true,
   availability = 'all',
   categories = [],
   categoryIds = new Map(),
@@ -141,7 +143,7 @@ export function useCatalogProducts({
       uncategorizedId,
     });
 
-    if (!query.enabled) {
+    if (!enabled || !query.enabled) {
       return {
         hasMore: false,
         loading: false,
@@ -174,6 +176,7 @@ export function useCatalogProducts({
       ready: handle.ready(),
     };
   }, [
+    enabled,
     availability,
     categories,
     categoryIds,
@@ -188,4 +191,32 @@ export function useCatalogProducts({
     storeKey,
     uncategorizedId,
   ]);
+}
+
+export function useCategorySelection({ enabled, ownerId, rootId, selectionKey, categories, storeIds }) {
+  const [failure, setFailure] = React.useState(null);
+  const storeKey = (storeIds || []).map(String).sort().join('|');
+  const state = Meteor.useTracker(() => {
+    if (!enabled || !ownerId || !storeKey) return { products: [], loading: false };
+    const handle = Meteor.subscribe('comercio.productosSeleccionCategoria', ownerId, rootId, selectionKey);
+    const selection = SeleccionesCatalogoCollection.findOne(selectionKey);
+    const productIds = selection?.productIds || [];
+    const products = ProductosComercioCollection.find({
+      _id: { $in: productIds },
+      idTienda: { $in: storeKey.split('|') },
+    }, { fields: PRODUCT_FIELDS }).fetch();
+    return {
+      products: getCategorySelectionProducts(getVisibleCatalogProducts(products, categories), productIds),
+      loading: !handle.ready(),
+    };
+  }, [enabled, ownerId, rootId, selectionKey, categories, storeKey]);
+  // This client does not forward nosub errors to onError; bound the loading state.
+  React.useEffect(() => {
+    if (!enabled || !state.loading) return undefined;
+    const timer = window.setTimeout(() => {
+      setFailure({ key: selectionKey, message: 'No se pudo cargar esta selección. Comprueba la conexión e inténtalo de nuevo.' });
+    }, 20000);
+    return () => window.clearTimeout(timer);
+  }, [enabled, state.loading, selectionKey]);
+  return { ...state, error: state.loading && failure?.key === selectionKey ? failure.message : '' };
 }

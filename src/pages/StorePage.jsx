@@ -19,6 +19,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useTheme,
 } from '@mui/material';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
@@ -37,9 +38,10 @@ import { useOutletContext } from 'react-router-dom';
 
 import { getCommerceDisplayName, isCompanyConfigured } from '../config';
 import ProductCard from '../components/ProductCard';
+import CategoryProductSelection from '../components/CategoryProductSelection';
 import { CategoryMenu, CategoryTreeExplorer } from '../components/CategoryNavigation';
 import { CATALOG_LIMIT_STEP, INITIAL_CATALOG_LIMIT, MAX_CATALOG_LIMIT } from '../domain/commerce';
-import { buildCategoryTree, UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories } from '../domain/categories';
+import { buildCategoryTree, CATEGORY_SELECTION_LIMIT, UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories } from '../domain/categories';
 import { useCatalogProducts } from '../hooks/useStorefront';
 import './store.css';
 
@@ -59,6 +61,7 @@ const SORT_OPTIONS = [
 const CURRENCY_OPTIONS = ['CUP', 'UYU', 'USD'];
 
 export function StorePage() {
+  const theme = useTheme();
   const { cart, notify, storefront, user } = useOutletContext();
   const [search, setSearch] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
@@ -113,8 +116,12 @@ export function StorePage() {
     [categories],
   );
   const categoryTree = React.useMemo(() => buildCategoryTree(categoryOptions), [categoryOptions]);
+  const showCategorySelections = selectedCategory === 'all' && selectedStore === 'all' &&
+    availability === 'all' && selectedCurrency === 'all' && minPrice === '' && maxPrice === '' &&
+    sort === 'recommended' && !search.trim() && !debouncedSearch;
 
   const catalogState = useCatalogProducts({
+    enabled: !showCategorySelections && !storefront.loading,
     availability,
     categories: storefront.categories,
     categoryIds,
@@ -363,8 +370,8 @@ export function StorePage() {
           <Box className="store-compact-kpi">
             <Box className="highlight-icon orange"><CheckCircleOutlineRoundedIcon fontSize="small" /></Box>
             <Box>
-              <strong>{INITIAL_CATALOG_LIMIT}</strong>
-              <span>Por bloque inicial</span>
+              <strong>{showCategorySelections ? CATEGORY_SELECTION_LIMIT : INITIAL_CATALOG_LIMIT}</strong>
+              <span>{showCategorySelections ? 'Por categoría principal' : 'Por bloque inicial'}</span>
             </Box>
           </Box>
           <Box className="store-compact-kpi">
@@ -418,12 +425,14 @@ export function StorePage() {
                   ? selectedStoreObj.title || selectedStoreObj.name
                   : hasAnyFilter
                     ? 'Resultados filtrados'
-                    : 'Selección inicial'}
+                    : 'Descubre por categorías'}
             </Typography>
             <Chip
               className="catalog-count"
               label={
-                catalogState.hasMore
+                showCategorySelections
+                  ? 'Selecciones aleatorias · carga progresiva'
+                  : catalogState.hasMore
                   ? `Mostrando ${filteredProducts.length} (hay más disponibles)`
                   : `${filteredProducts.length} ${filteredProducts.length === 1 ? 'producto' : 'productos'}`
               }
@@ -533,6 +542,22 @@ export function StorePage() {
             <Typography variant="h5">No encontramos tiendas para esta empresa</Typography>
             <Typography color="text.secondary">Verifica que el ID configurado corresponda al propietario o a una tienda existente de la empresa.</Typography>
           </Paper>
+        ) : showCategorySelections ? (
+          <Box className="category-product-selections">
+            {categoryTree.map((category) => (
+              <CategoryProductSelection
+                key={`${storefront.companyId}-${category.id}`}
+                category={category}
+                storefront={storefront}
+                storesById={storesById}
+                cart={cart}
+                cartBlocked={isCartBlocked}
+                notify={notify}
+                onSelect={(id) => { setSelectedCategory(id); scrollToCatalog(); }}
+                viewMode={viewMode}
+              />
+            ))}
+          </Box>
         ) : !filteredProducts.length ? (
           <Paper className="catalog-empty" elevation={0}>
             <Box className="empty-state-icon"><FilterAltOffRoundedIcon /></Box>
@@ -614,18 +639,19 @@ export function StorePage() {
       {/* DRAWER LATERAL DE FILTROS AVANZADOS */}
       <Drawer
         anchor="left"
-        className="catalog-filter-drawer"
+        className={`catalog-filter-drawer catalog-overlay mode-${theme.palette.mode}`}
         onClose={() => setFilterDrawerOpen(false)}
         open={filterDrawerOpen}
+        slotProps={{ paper: { 'aria-labelledby': 'catalog-filter-title' } }}
       >
-        <Box className="filter-drawer-shell" role="dialog" aria-label="Filtrar catálogo">
+        <Box className="filter-drawer-shell">
           <Box className="filter-drawer-header">
             <Box className="filter-drawer-title-wrap">
               <Box className="filter-drawer-icon"><TuneRoundedIcon fontSize="small" /></Box>
               <Box>
-                <Typography fontWeight={800} variant="subtitle1">Filtrar catálogo</Typography>
+                <Typography id="catalog-filter-title" fontWeight={800} variant="subtitle1">Filtrar catálogo</Typography>
                 <Typography color="text.secondary" variant="caption">
-                  Consulta bajo demanda · {filteredProducts.length} visibles
+                  {activeFiltersCount ? `${activeFiltersCount} ${activeFiltersCount === 1 ? 'filtro activo' : 'filtros activos'}` : 'Encuentra justo lo que buscas'}
                 </Typography>
               </Box>
             </Box>
@@ -795,7 +821,7 @@ export function StorePage() {
               }}
               variant="contained"
             >
-              Aplicar filtros
+              Ver resultados
             </Button>
           </Box>
         </Box>
