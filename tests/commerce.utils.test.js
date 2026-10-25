@@ -170,7 +170,7 @@ test('muestra cada producto solo en su categoría exacta y oculta las categoría
     { _id: 'mouses', nombre: 'Mouses', idCategoriaHeredada: 'componentes' },
   ];
   const categories = getCatalogCategories(tree, null).filter((category) => category.visible);
-  const ids = new Map(categories.map((category) => [category.id, categoryIdsFor(tree, category.id)]));
+  const ids = new Map(categories.map((category) => [category.id, new Set([category.id])]));
   const product = { _id: 'g502', idCategoria: 'mouses' };
 
   assert.deepEqual(getPopulatedCategoryRows(categories, ids, [product]).map((category) => category.id), ['mouses']);
@@ -186,7 +186,7 @@ test('muestra cada producto solo en su categoría exacta y oculta las categoría
 test('muestra la categoría del producto solo en el escaparate de su tienda', () => {
   const tree = [{ _id: 'comida', nombre: 'Comida' }];
   const categories = getCatalogCategories(tree, null);
-  const ids = new Map(categories.map((category) => [category.id, categoryIdsFor(tree, category.id)]));
+  const ids = new Map(categories.map((category) => [category.id, new Set([category.id])]));
   const product = { _id: 'cochino-frito', idTienda: 'store-c', idCategoria: 'comida' };
 
   const ownProducts = selectCompanyProducts([product], ['store-c']);
@@ -244,4 +244,26 @@ test('construye consultas de catálogo paginadas y acotadas bajo demanda', () =>
   assert.deepEqual(scoped.selector.precio, { $gte: 50, $lte: 300 });
   assert.equal(Array.isArray(scoped.selector.$and), true);
   assert.equal(scoped.selector.$and.length, 2);
+});
+
+test('filtra una categoría padre junto con sus categorías descendientes', () => {
+  const categoryTree = [
+    { _id: 'food', nombre: 'Comida' },
+    { _id: 'baked', nombre: 'Panadería', idCategoriaHeredada: 'food' },
+    { _id: 'bread', nombre: 'Pan integral', idCategoriaHeredada: 'baked' },
+    { _id: 'drinks', nombre: 'Bebidas' },
+  ];
+  const visibleCategories = getCatalogCategories(categoryTree, null).filter((category) => category.visible);
+  const categoryIds = new Map(
+    visibleCategories.map((category) => [category.id, categoryIdsFor(visibleCategories, category.id)]),
+  );
+  const query = buildCatalogSubscriptionQuery({
+    categoryIds,
+    selectedCategory: 'food',
+    storeIds: ['store-a'],
+  });
+
+  assert.deepEqual([...categoryIds.get('food')], ['food', 'baked', 'bread']);
+  assert.deepEqual(query.selector.idCategoria, { $in: ['food', 'baked', 'bread'] });
+  assert.equal(categoryIds.get('drinks').has('bread'), false);
 });

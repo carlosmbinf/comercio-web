@@ -39,7 +39,15 @@ export function getCatalogCategories(categories, preferences) {
       if (current.visibleEnInicio === false) visible = false;
       current = byId.get(String(current.idCategoriaHeredada || ''));
     }
-    available.set(String(category._id), { id: String(category._id), label: pathFor(category), visible });
+    const id = String(category._id);
+    const parentId = String(category.idCategoriaHeredada || '').trim();
+    available.set(id, {
+      id,
+      label: pathFor(category),
+      name: String(category.nombre || ''),
+      parentId: parentId || null,
+      visible,
+    });
   });
   const ordered = [];
   (Array.isArray(preferences) ? preferences : []).forEach((entry) => {
@@ -61,7 +69,61 @@ export function getVisibleCatalogProducts(products, categories) {
 
 export function categoryIdsFor(_categories, categoryId) {
   if (!categoryId) return new Set();
-  return new Set([String(categoryId)]);
+  const targetId = String(categoryId);
+  const descendantsByParent = new Map();
+  (Array.isArray(_categories) ? _categories : []).forEach((category) => {
+    const parentId = String(category?.idCategoriaHeredada || category?.parentId || '').trim();
+    const id = String(category?._id || category?.id || '').trim();
+    if (!parentId || !id) return;
+    if (!descendantsByParent.has(parentId)) descendantsByParent.set(parentId, []);
+    descendantsByParent.get(parentId).push(id);
+  });
+
+  const ids = new Set([targetId]);
+  const pending = [targetId];
+  while (pending.length) {
+    const parentId = pending.pop();
+    (descendantsByParent.get(parentId) || []).forEach((id) => {
+      if (ids.has(id)) return;
+      ids.add(id);
+      pending.push(id);
+    });
+  }
+  return ids;
+}
+
+export function buildCategoryTree(categories = []) {
+  const nodesById = new Map();
+  (Array.isArray(categories) ? categories : []).forEach((category) => {
+    if (!category?.id) return;
+    nodesById.set(String(category.id), {
+      ...category,
+      id: String(category.id),
+      parentId: category.parentId ? String(category.parentId) : null,
+      children: [],
+    });
+  });
+
+  const roots = [];
+  nodesById.forEach((node) => {
+    const parent = node.parentId ? nodesById.get(node.parentId) : null;
+    if (parent && parent.id !== node.id) parent.children.push(node);
+    else roots.push(node);
+  });
+
+  return roots;
+}
+
+export function flattenCategoryTree(roots = []) {
+  const result = [];
+  const visit = (nodes) => {
+    (Array.isArray(nodes) ? nodes : []).forEach((node) => {
+      result.push(node);
+      visit(node.children);
+    });
+  };
+  visit(roots);
+  return result;
 }
 
 export function getPopulatedCategoryRows(categories, categoryIds, products) {

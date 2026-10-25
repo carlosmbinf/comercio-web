@@ -20,7 +20,6 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
@@ -38,8 +37,9 @@ import { useOutletContext } from 'react-router-dom';
 
 import { getCommerceDisplayName, isCompanyConfigured } from '../config';
 import ProductCard from '../components/ProductCard';
+import { CategoryMenu, CategoryTreeExplorer } from '../components/CategoryNavigation';
 import { CATALOG_LIMIT_STEP, INITIAL_CATALOG_LIMIT, MAX_CATALOG_LIMIT } from '../domain/commerce';
-import { UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories } from '../domain/categories';
+import { buildCategoryTree, UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories } from '../domain/categories';
 import { useCatalogProducts } from '../hooks/useStorefront';
 import './store.css';
 
@@ -72,8 +72,6 @@ export function StorePage() {
   const [limit, setLimit] = React.useState(INITIAL_CATALOG_LIMIT);
   const [viewMode, setViewMode] = React.useState('compact');
   const [filterDrawerOpen, setFilterDrawerOpen] = React.useState(false);
-  const [categorySearch, setCategorySearch] = React.useState('');
-  const [drawerCategoryLimit, setDrawerCategoryLimit] = React.useState(10);
   const [clearingCart, setClearingCart] = React.useState(false);
   const [cartActionError, setCartActionError] = React.useState('');
 
@@ -107,13 +105,14 @@ export function StorePage() {
     [storefront.categories, user?.categoriasComercioInicio],
   );
   const categoryIds = React.useMemo(
-    () => new Map(categories.map((category) => [category.id, categoryIdsFor(storefront.categories, category.id)])),
-    [categories, storefront.categories],
+    () => new Map(categories.map((category) => [category.id, categoryIdsFor(categories, category.id)])),
+    [categories],
   );
   const categoryOptions = React.useMemo(
     () => [...categories, { id: UNCATEGORIZED_CATEGORY_ID, label: 'Sin categoría', visible: true }],
     [categories],
   );
+  const categoryTree = React.useMemo(() => buildCategoryTree(categoryOptions), [categoryOptions]);
 
   const catalogState = useCatalogProducts({
     availability,
@@ -133,42 +132,6 @@ export function StorePage() {
 
   const filteredProducts = catalogState.products;
   const isInitialLoading = Boolean(storefront.loading || (catalogState.loading && !filteredProducts.length));
-
-  const quickCategories = React.useMemo(() => {
-    const activeCatIds = new Set(
-      [...storefront.products, ...filteredProducts]
-        .map((product) => String(product?.idCategoria || '').trim())
-        .filter(Boolean),
-    );
-    const hasUncategorized = [...storefront.products, ...filteredProducts].some(
-      (product) => !String(product?.idCategoria || '').trim(),
-    );
-
-    const prioritized = [];
-    const seen = new Set();
-    const pushUnique = (cat) => {
-      if (!cat || seen.has(cat.id)) return;
-      seen.add(cat.id);
-      prioritized.push(cat);
-    };
-
-    if (selectedCategory !== 'all') {
-      pushUnique(categoryOptions.find((cat) => cat.id === selectedCategory));
-    }
-    categories.filter((cat) => activeCatIds.has(cat.id)).forEach(pushUnique);
-    if (hasUncategorized) {
-      pushUnique({ id: UNCATEGORIZED_CATEGORY_ID, label: 'Sin categoría', visible: true });
-    }
-    categories.filter((cat) => !cat.label.includes(' › ')).slice(0, 6).forEach(pushUnique);
-
-    return prioritized.slice(0, 6);
-  }, [categories, categoryOptions, filteredProducts, selectedCategory, storefront.products]);
-
-  const filteredDrawerCategories = React.useMemo(() => {
-    const q = categorySearch.trim().toLocaleLowerCase('es');
-    if (!q) return categoryOptions;
-    return categoryOptions.filter((cat) => cat.label.toLocaleLowerCase('es').includes(q));
-  }, [categoryOptions, categorySearch]);
 
   React.useEffect(() => {
     if (!storefront.loading && selectedCategory !== 'all' && !categoryOptions.some((category) => category.id === selectedCategory)) {
@@ -323,40 +286,13 @@ export function StorePage() {
           </Box>
         </Box>
 
-        <Box className="store-subheader-categories" role="navigation" aria-label="Explorar por categorías">
-          <Box className="subheader-categories-track">
-            <Chip
-              clickable
-              className={selectedCategory === 'all' ? 'subheader-cat-chip active' : 'subheader-cat-chip'}
-              icon={<CategoryOutlinedIcon fontSize="small" />}
-              label="Destacados"
-              onClick={() => selectCategoryFromSubheader('all')}
-              size="small"
-            />
-            {quickCategories.map((category) => {
-              const active = selectedCategory === category.id;
-              return (
-                <Chip
-                  clickable
-                  className={active ? 'subheader-cat-chip active' : 'subheader-cat-chip'}
-                  key={category.id}
-                  label={category.label}
-                  onClick={() => selectCategoryFromSubheader(category.id)}
-                  size="small"
-                />
-              );
-            })}
-            {categoryOptions.length > quickCategories.length ? (
-              <Chip
-                clickable
-                className="subheader-cat-chip more"
-                icon={<TuneRoundedIcon fontSize="small" />}
-                label="Ver más categorías…"
-                onClick={() => setFilterDrawerOpen(true)}
-                size="small"
-              />
-            ) : null}
-          </Box>
+        <Box className="store-subheader-categories">
+          <CategoryMenu
+            onOpenAll={() => setFilterDrawerOpen(true)}
+            onSelect={selectCategoryFromSubheader}
+            roots={categoryTree}
+            selectedCategory={selectedCategory}
+          />
 
           {visibleStores.length > 1 ? (
             <Box className="subheader-stores-strip">
@@ -744,57 +680,11 @@ export function StorePage() {
             {/* Categorías */}
             <Box className="filter-drawer-group">
               <Typography className="filter-group-label" variant="overline">Categorías</Typography>
-              {categoryOptions.length > 8 ? (
-                <TextField
-                  fullWidth
-                  onChange={(event) => {
-                    setCategorySearch(event.target.value);
-                    setDrawerCategoryLimit(10);
-                  }}
-                  placeholder="Buscar categoría…"
-                  size="small"
-                  value={categorySearch}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchRoundedIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              ) : null}
-              <Stack spacing={0.75}>
-                <Button
-                  className={selectedCategory === 'all' ? 'drawer-option-btn active' : 'drawer-option-btn'}
-                  fullWidth
-                  onClick={() => setSelectedCategory('all')}
-                  variant="text"
-                >
-                  <span>Todas las categorías</span>
-                  {selectedCategory === 'all' ? <CheckCircleOutlineRoundedIcon fontSize="small" /> : null}
-                </Button>
-                {filteredDrawerCategories.slice(0, drawerCategoryLimit).map((category) => (
-                  <Button
-                    className={selectedCategory === category.id ? 'drawer-option-btn active' : 'drawer-option-btn'}
-                    fullWidth
-                    key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
-                    variant="text"
-                  >
-                    <span>{category.label}</span>
-                    {selectedCategory === category.id ? <CheckCircleOutlineRoundedIcon fontSize="small" /> : null}
-                  </Button>
-                ))}
-                {filteredDrawerCategories.length > drawerCategoryLimit ? (
-                  <Button
-                    onClick={() => setDrawerCategoryLimit((curr) => curr + 12)}
-                    size="small"
-                    variant="text"
-                  >
-                    Ver más categorías ({filteredDrawerCategories.length - drawerCategoryLimit})
-                  </Button>
-                ) : null}
-              </Stack>
+              <CategoryTreeExplorer
+                categories={categoryTree}
+                onSelect={setSelectedCategory}
+                selectedCategory={selectedCategory}
+              />
             </Box>
 
             {visibleStores.length > 0 ? (

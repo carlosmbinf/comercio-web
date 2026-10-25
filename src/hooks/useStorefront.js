@@ -60,18 +60,20 @@ export function useStorefront({ subscribeCategories = true } = {}) {
       fields: STORE_FIELDS,
       sort: { title: 1 },
     });
-    const categoriesHandle = subscribeCategories
-      ? Meteor.subscribe('categoriasComercioCatalogo')
-      : { ready: () => true };
-    const categories = CategoriasComercioCollection.find({}, {
-      fields: { _id: 1, nombre: 1, idCategoriaHeredada: 1, visibleEnInicio: 1, ordenInicio: 1 },
-    }).fetch();
     const seedStores = TiendasComercioCollection.find(seedSelector, {
       fields: STORE_FIELDS,
       sort: { title: 1 },
     }).fetch();
     const ownerId = resolveCompanyOwnerId(seedStores, COMERCIO_EMPRESA_ID) ||
       (seedHandle.ready() ? COMERCIO_EMPRESA_ID : '');
+    const categoriesHandle = subscribeCategories && ownerId
+      ? Meteor.subscribe('categoriasComercioCatalogo', ownerId)
+      : { ready: () => !subscribeCategories || !ownerId };
+    const categories = ownerId
+      ? CategoriasComercioCollection.find({ creadaPor: ownerId }, {
+          fields: { _id: 1, creadaPor: 1, nombre: 1, idCategoriaHeredada: 1, visibleEnInicio: 1, ordenInicio: 1 },
+        }).fetch()
+      : [];
     const storeSelector = ownerId ? { idUser: ownerId } : seedSelector;
     const storesHandle = ownerId && ownerId !== COMERCIO_EMPRESA_ID
       ? Meteor.subscribe('tiendas', storeSelector, { fields: STORE_FIELDS, sort: { title: 1 } })
