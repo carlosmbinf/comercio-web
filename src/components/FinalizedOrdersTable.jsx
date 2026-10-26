@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Drawer,
   IconButton,
   InputAdornment,
   Paper,
@@ -21,7 +22,9 @@ import {
   TableRow,
   TextField,
   Typography,
+  useMediaQuery,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
@@ -172,24 +175,28 @@ function FinalizedOrderTimeline({ sale }) {
   );
 }
 
-function OrderDetailDialog({ onClose, sale, showEvidenceHistory = true, storeIds, stores }) {
+function OrderDetailDialog({ onClose, onExited, open, sale, showEvidenceHistory = true, storeIds, stores }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   if (!sale) return null;
 
+  const isDarkMode = theme.palette.mode === 'dark';
+  const dialogStyle = {
+    '--mui-palette-background-paper': theme.palette.background.paper,
+    '--line-soft': theme.palette.divider,
+    '--accent': isDarkMode ? '#a78bfa' : '#7549df',
+    '--accent-soft': isDarkMode ? 'rgba(167,139,250,.15)' : 'rgba(117,73,223,.1)',
+    '--surface-soft': isDarkMode ? '#201f29' : '#f0eff4',
+    colorScheme: theme.palette.mode,
+  };
   const summary = buildOrderRowSummary(sale, storeIds, stores);
   const canInspectEvidence =
     showEvidenceHistory &&
     ['EFECTIVO', 'TRANSFERENCIA'].includes(summary.payment.code);
 
-  return (
-    <Dialog
-      aria-labelledby="finalized-order-dialog-title"
-      className="finalized-order-dialog"
-      disablePortal
-      fullWidth
-      maxWidth="md"
-      onClose={onClose}
-      open={Boolean(sale)}
-    >
+  const dialogContent = (
+    <>
       <DialogTitle className="finalized-order-dialog-header" id="finalized-order-dialog-title">
         <Box className="finalized-order-dialog-title-wrap">
           <Box className="finalized-order-dialog-badge">
@@ -365,6 +372,53 @@ function OrderDetailDialog({ onClose, sale, showEvidenceHistory = true, storeIds
           Cerrar detalle
         </Button>
       </DialogActions>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Drawer
+        anchor="bottom"
+        className="finalized-order-mobile-drawer"
+        onClose={onClose}
+        open={open}
+        transitionDuration={prefersReducedMotion ? 0 : { enter: 300, exit: 240 }}
+        slotProps={{
+          paper: {
+            'aria-labelledby': 'finalized-order-dialog-title',
+            'aria-modal': true,
+            className: 'finalized-order-mobile-drawer-paper',
+            role: 'dialog',
+            style: dialogStyle,
+          },
+          transition: {
+            appear: true,
+            onExited,
+          },
+        }}
+      >
+        {dialogContent}
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog
+      aria-labelledby="finalized-order-dialog-title"
+      className="finalized-order-dialog"
+      fullWidth
+      maxWidth="md"
+      onClose={onClose}
+      open={open}
+      style={dialogStyle}
+      slotProps={{
+        transition: {
+          appear: true,
+          onExited,
+        },
+      }}
+    >
+      {dialogContent}
     </Dialog>
   );
 }
@@ -381,6 +435,12 @@ export default function FinalizedOrdersTable({
   const [statusFilter, setStatusFilter] = React.useState('ALL');
   const [search, setSearch] = React.useState('');
   const [selectedOrderId, setSelectedOrderId] = React.useState('');
+  const [orderDetailOpen, setOrderDetailOpen] = React.useState(false);
+
+  const openOrderDetail = (orderId) => {
+    setSelectedOrderId(orderId);
+    setOrderDetailOpen(true);
+  };
 
   const rows = React.useMemo(
     () => orders.map((sale) => ({ sale, summary: buildOrderRowSummary(sale, storeIds, stores) })),
@@ -530,11 +590,11 @@ export default function FinalizedOrdersTable({
                     className="finalized-order-row"
                     hover
                     key={summary.id}
-                    onClick={() => setSelectedOrderId(summary.id)}
+                    onClick={() => openOrderDetail(summary.id)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        setSelectedOrderId(summary.id);
+                        openOrderDetail(summary.id);
                       }
                     }}
                     role="button"
@@ -631,7 +691,7 @@ export default function FinalizedOrdersTable({
                         className="finalized-detail-btn"
                         onClick={(event) => {
                           event.stopPropagation();
-                          setSelectedOrderId(summary.id);
+                          openOrderDetail(summary.id);
                         }}
                         size="small"
                         startIcon={<VisibilityOutlinedIcon fontSize="small" />}
@@ -649,7 +709,9 @@ export default function FinalizedOrdersTable({
       </Paper>
 
       <OrderDetailDialog
-        onClose={() => setSelectedOrderId('')}
+        onClose={() => setOrderDetailOpen(false)}
+        onExited={() => setSelectedOrderId('')}
+        open={orderDetailOpen}
         sale={selectedSale}
         showEvidenceHistory={showEvidenceHistory}
         storeIds={storeIds}
