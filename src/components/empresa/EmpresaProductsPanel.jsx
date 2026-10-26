@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl, InputAdornment, MenuItem, Paper, Select, TextField, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, CircularProgress, FormControl, InputAdornment, MenuItem, Paper, Select, TextField, Tooltip, Typography } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
@@ -333,10 +333,17 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
       ) : !products.length ? (
         <Paper className="empresa-empty" elevation={0}><Inventory2RoundedIcon color="primary" fontSize="large" /><Typography variant="h6">No hay productos con esos filtros</Typography><Typography color="text.secondary" variant="body2">Crea un producto o ajusta la búsqueda para ver el catálogo.</Typography>{data.products.length ? <Button onClick={() => { setSearch(''); setStoreFilter('all'); }} variant="outlined">Limpiar filtros</Button> : null}</Paper>
       ) : (
-        <Box className="empresa-product-grid">
+        <Paper className="empresa-product-list" elevation={0}>
+          <Box aria-hidden="true" className="empresa-product-list-header">
+            <span>Producto y tienda</span>
+            <span>Precio e inventario</span>
+            <span>Acciones</span>
+          </Box>
+          <Box aria-label="Lista de productos" className="empresa-product-list-items" component="ul">
           {products.map((product) => {
             const store = data.stores.find((item) => String(item._id) === String(product.idTienda));
             const stock = Math.max(0, Number(product.count || 0));
+            const hasLinkedMercadoLibreListing = hasMercadoLibreListing(product.mercadoLibre);
             const mercadoLibreStatus = getMercadoLibreStatusPresentation(product.mercadoLibre?.status);
             const mercadoLibreClosed = String(product.mercadoLibre?.status || '').toLowerCase() === 'closed';
             const mercadoLibreWarnings = [
@@ -357,17 +364,31 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
               product.mercadoLibre?.titleSyncWarning ? 'El título requiere revisión en Mercado Libre.' : '',
             ].filter(Boolean);
             return (
-              <Card className="empresa-product-card" elevation={0} key={product._id}>
-                <CardContent>
-                  <Box className="empresa-product-card-heading">
-                    <Box className="empresa-product-avatar">{String(product.name || 'P').trim().slice(0, 1).toUpperCase()}</Box>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography fontWeight={750} noWrap variant="subtitle1">{product.name || 'Producto'}</Typography>
-                      <Typography color="text.secondary" noWrap variant="caption">{store?.title || 'Tienda'}</Typography>
-                    </Box>
-                    <Tooltip arrow describeChild title={hasMercadoLibreListing(product.mercadoLibre)
-                      ? 'Elimina el producto local y retira primero su anuncio o variante de Mercado Libre.'
-                      : 'Elimina este producto y sus fotos de la tienda.'}>
+              <Box className="empresa-product-row" component="li" key={product._id}>
+                <Box className="empresa-product-row-main">
+                      <Box className="empresa-product-avatar">{String(product.name || 'P').trim().slice(0, 1).toUpperCase()}</Box>
+                      <Box className="empresa-product-row-copy">
+                        <Typography className="empresa-product-row-name" component="h3" fontWeight={750} noWrap variant="subtitle1">{product.name || 'Producto'}</Typography>
+                        <Typography className="empresa-product-row-store" color="text.secondary" noWrap variant="caption">{store?.title || 'Tienda'}</Typography>
+                        <Typography className="empresa-product-row-description" color="text.secondary" variant="body2">{product.descripcion || 'Sin descripción.'}</Typography>
+                        <Typography className="empresa-product-row-category" color="text.secondary" variant="caption">{product.idCategoria ? 'Categoría asignada' : 'Sin categoría'}</Typography>
+                      </Box>
+                </Box>
+
+                <Box className="empresa-product-row-meta">
+                  <Typography className="empresa-product-row-price" fontWeight={800} variant="subtitle1">{formatMoney(product.precio, product.monedaPrecio || 'USD')}</Typography>
+                  <Chip label={product.productoDeElaboracion ? 'Por encargo' : stock ? `${stock} disponibles` : 'Agotado'} size="small" color={product.productoDeElaboracion ? 'secondary' : stock ? 'success' : 'default'} />
+                </Box>
+
+                <Box className="empresa-product-row-actions">
+                  <Tooltip arrow describeChild title="Edita los datos, fotos e inventario local. Los cambios compatibles de Mercado Libre se sincronizan según el estado de la publicación.">
+                      <span>
+                        <Button aria-label={`Editar ${product.name || 'producto'}`} onClick={() => openEdit(product)} size="small" variant="outlined">Editar</Button>
+                      </span>
+                  </Tooltip>
+                  <Tooltip arrow describeChild title={hasLinkedMercadoLibreListing
+                        ? 'Elimina el producto local y retira primero su anuncio o variante de Mercado Libre.'
+                        : 'Elimina este producto y sus fotos de la tienda.'}>
                       <span>
                         <Button
                           aria-label={`Eliminar ${product.name || 'producto'}`}
@@ -382,14 +403,10 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
                         </Button>
                       </span>
                     </Tooltip>
-                  </Box>
-                  <Typography className="empresa-product-description" color="text.secondary" variant="body2">{product.descripcion || 'Sin descripción.'}</Typography>
-                  <Box className="empresa-product-meta">
-                    <Typography fontWeight={750} variant="h6">{formatMoney(product.precio, product.monedaPrecio || 'USD')}</Typography>
-                    <Chip label={product.productoDeElaboracion ? 'Por encargo' : stock ? `${stock} disponibles` : 'Agotado'} size="small" color={product.productoDeElaboracion ? 'secondary' : stock ? 'success' : 'default'} />
-                  </Box>
-                  {mercadoLibreEnabled && hasMercadoLibreListing(product.mercadoLibre) ? (
-                    <Box sx={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                </Box>
+
+                {mercadoLibreEnabled && hasLinkedMercadoLibreListing ? (
+                    <Box className="empresa-product-row-marketplace">
                       <Chip
                         color={mercadoLibreStatus.color}
                         label={`Mercado Libre · ${mercadoLibreStatus.label}`}
@@ -438,21 +455,17 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
                         </Tooltip>
                       ) : null}
                     </Box>
-                  ) : null}
-                  {mercadoLibreEnabled && hasMercadoLibreListing(product.mercadoLibre) && mercadoLibreWarnings.length ? (
-                    <Alert severity="warning" sx={{ mt: 1 }}>
+                ) : null}
+                {mercadoLibreEnabled && hasLinkedMercadoLibreListing && mercadoLibreWarnings.length ? (
+                    <Alert className="empresa-product-row-warning" severity="warning">
                       {mercadoLibreWarnings.join(' ')}
                     </Alert>
-                  ) : null}
-                  {product.idCategoria ? <Typography color="text.secondary" variant="caption">Categoría asignada</Typography> : <Typography color="text.secondary" variant="caption">Sin categoría</Typography>}
-                  <Tooltip arrow describeChild title="Edita los datos, fotos e inventario local. Los cambios compatibles de Mercado Libre se sincronizan según el estado de la publicación.">
-                    <span style={{ display: 'block' }}><Button fullWidth onClick={() => openEdit(product)} sx={{ mt: 1.5 }} variant="outlined">Editar producto</Button></span>
-                  </Tooltip>
-                </CardContent>
-              </Card>
+                ) : null}
+              </Box>
             );
           })}
-        </Box>
+          </Box>
+        </Paper>
       )}
 
       <EmpresaProductDialog
