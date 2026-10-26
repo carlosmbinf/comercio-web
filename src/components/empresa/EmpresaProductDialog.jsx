@@ -234,7 +234,7 @@ export default function EmpresaProductDialog({
         body.style[property] = value;
       });
       documentElement.style.overflow = previousDocumentOverflow;
-      window.scrollTo({ left: 0, top: scrollY, behavior: 'instant' });
+      window.scrollTo(0, scrollY);
     };
   }, [open]);
 
