@@ -1,12 +1,15 @@
 import React from 'react';
-import { Alert, Box, Button, Card, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Switch, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Collapse, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Switch, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import CreateNewFolderOutlinedIcon from '@mui/icons-material/CreateNewFolderOutlined';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import { Meteor, callMeteor } from '../../meteor/client';
 import { CategoriasComercioCollection } from '../../meteor/collections';
 import { ensureEmpresaMethodSuccess } from '../../domain/empresa';
+import { getCategorySourceGroups } from '../../domain/categories';
 
 const CATEGORY_FIELDS = {
   _id: 1,
@@ -14,6 +17,7 @@ const CATEGORY_FIELDS = {
   createAt: 1,
   creadaPor: 1,
   idCategoriaHeredada: 1,
+  mercadoLibreCategoryId: 1,
   nombre: 1,
 };
 
@@ -33,42 +37,65 @@ const buildTree = (categories) => {
   return roots;
 };
 
-function CategoryNode({ ancestorsActive = true, category, depth, onAddChild, onEdit, onToggle, userId }) {
-  const canManage = category.creadaPor === userId;
+function CategoryNode({ ancestorsActive = true, category, depth, onAddChild, onDelete, onEdit, onToggle, userId }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const isMercadoLibre = Boolean(category.mercadoLibreCategoryId);
+  const canManage = !isMercadoLibre && category.creadaPor === userId;
+  const canAddChild = !isMercadoLibre;
   const active = category.activa !== false;
   const branchActive = ancestorsActive && active;
 
   return (
-    <Box className="empresa-category-node" sx={{ ml: Math.min(depth, 5) * 2 }}>
-      <Paper className={active ? 'empresa-category-card' : 'empresa-category-card inactive'} elevation={0}>
-        <Box className="empresa-category-icon"><FolderOutlinedIcon /></Box>
-        <Box className="empresa-category-copy">
-          <Typography fontWeight={700} variant="subtitle1">{category.nombre}</Typography>
-          <Typography color="text.secondary" variant="caption">
-            {category.children.length ? `${category.children.length} subcategorías` : 'Sin subcategorías'} · {canManage ? 'Creada por ti' : 'Compartida'}
-          </Typography>
-        </Box>
-        <Button disabled={!branchActive} onClick={() => onAddChild(category)} size="small" startIcon={<CreateNewFolderOutlinedIcon />} variant="text">Subcategoría</Button>
-        {canManage ? (
-          <>
-            <IconButton aria-label={`Renombrar ${category.nombre}`} onClick={() => onEdit(category)} size="small"><EditOutlinedIcon fontSize="small" /></IconButton>
-            <Switch
-              checked={active}
-              inputProps={{ 'aria-label': `${active ? 'Desactivar' : 'Activar'} ${category.nombre}` }}
-              onChange={() => onToggle(category, !active)}
-              size="small"
-            />
-          </>
-        ) : <Typography color="text.secondary" variant="caption">{active ? 'Activa' : 'Inactiva'}</Typography>}
-      </Paper>
+    <>
+      <TableRow className={`empresa-category-row depth-${Math.min(depth, 5)}${active ? '' : ' inactive'}`}>
+        <TableCell className="empresa-category-name-cell">
+          <Box className="empresa-category-name" sx={{ pl: Math.min(depth, 5) * 2 }}>
+            {category.children.length ? (
+              <IconButton aria-label={`${expanded ? 'Contraer' : 'Expandir'} ${category.nombre}`} aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} size="small">
+                <ExpandMoreRoundedIcon className={expanded ? 'empresa-category-chevron expanded' : 'empresa-category-chevron'} />
+              </IconButton>
+            ) : <Box className="empresa-category-chevron-spacer" />}
+            <Box className="empresa-category-icon"><FolderOutlinedIcon /></Box>
+            <Box className="empresa-category-copy">
+              <Typography fontWeight={700} variant="subtitle2">{category.nombre}</Typography>
+              <Typography color="text.secondary" variant="caption">
+                {category.children.length ? `${category.children.length} subcategorías` : 'Sin subcategorías'} · {isMercadoLibre ? `Mercado Libre · ${category.mercadoLibreCategoryId}` : category.externalParentName ? `Legacy · Subcategoría de ${category.externalParentName}` : canManage ? 'Legacy · Creada por ti' : 'Legacy · Compartida'}
+              </Typography>
+            </Box>
+          </Box>
+        </TableCell>
+        <TableCell className="empresa-category-actions-cell">
+          {canAddChild ? <Button disabled={!branchActive} onClick={() => onAddChild(category)} size="small" startIcon={<CreateNewFolderOutlinedIcon />} variant="text">Subcategoría</Button> : null}
+          {canManage ? (
+            <>
+              <IconButton aria-label={`Renombrar ${category.nombre}`} onClick={() => onEdit(category)} size="small"><EditOutlinedIcon fontSize="small" /></IconButton>
+              <IconButton aria-label={`Eliminar ${category.nombre}`} onClick={() => onDelete(category)} size="small"><DeleteOutlineRoundedIcon fontSize="small" /></IconButton>
+              <Switch
+                checked={active}
+                inputProps={{ 'aria-label': `${active ? 'Desactivar' : 'Activar'} ${category.nombre}` }}
+                onChange={() => onToggle(category, !active)}
+                size="small"
+              />
+            </>
+          ) : isMercadoLibre ? <Typography color="text.secondary" variant="caption">Protegida</Typography> : <Typography color="text.secondary" variant="caption">{active ? 'Activa' : 'Inactiva'}</Typography>}
+        </TableCell>
+      </TableRow>
       {category.children.length ? (
-        <Box className="empresa-category-children">
-          {category.children.map((child) => (
-            <CategoryNode ancestorsActive={branchActive} category={child} depth={depth + 1} key={child._id} onAddChild={onAddChild} onEdit={onEdit} onToggle={onToggle} userId={userId} />
-          ))}
-        </Box>
+        <TableRow className="empresa-category-children-row">
+          <TableCell className="empresa-category-children-cell" colSpan={2}>
+            <Collapse in={expanded} timeout="auto" unmountOnExit>
+              <Table className="empresa-category-nested-table" size="small">
+                <TableBody>
+                  {category.children.map((child) => (
+                    <CategoryNode ancestorsActive={branchActive} category={child} depth={depth + 1} key={child._id} onAddChild={onAddChild} onDelete={onDelete} onEdit={onEdit} onToggle={onToggle} userId={userId} />
+                  ))}
+                </TableBody>
+              </Table>
+            </Collapse>
+          </TableCell>
+        </TableRow>
       ) : null}
-    </Box>
+    </>
   );
 }
 
@@ -80,6 +107,7 @@ export default function EmpresaCategoriesPanel({ notify, userId }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [feedback, setFeedback] = React.useState('');
+  const [sourceFilter, setSourceFilter] = React.useState('all');
 
   const data = Meteor.useTracker(() => {
     if (!userId) return { categories: [], ready: true };
@@ -92,7 +120,27 @@ export default function EmpresaCategoriesPanel({ notify, userId }) {
     };
   }, [userId]);
 
-  const tree = React.useMemo(() => buildTree(data.categories), [data.categories]);
+  const categorizedCategories = React.useMemo(() => {
+    const categoriesById = new Map(data.categories.map((category) => [String(category._id), category]));
+    return data.categories
+      .map((category) => {
+        const parent = category.idCategoriaHeredada ? categoriesById.get(String(category.idCategoriaHeredada)) : null;
+        return !category.mercadoLibreCategoryId && parent?.mercadoLibreCategoryId
+          ? { ...category, externalParentName: parent.nombre }
+          : category;
+      });
+  }, [data.categories]);
+  const sourceGroups = React.useMemo(
+    () => getCategorySourceGroups(categorizedCategories),
+    [categorizedCategories],
+  );
+  const sourceCounts = React.useMemo(() => ({
+    all: sourceGroups.all.length,
+    mercadoLibre: sourceGroups.mercadoLibre.length,
+    legacy: sourceGroups.legacy.length,
+  }), [sourceGroups]);
+  const visibleCategories = sourceGroups[sourceFilter] || sourceGroups.all;
+  const visibleTree = React.useMemo(() => buildTree(visibleCategories), [visibleCategories]);
   const activeCount = data.categories.filter((category) => category.activa !== false).length;
 
   const openCreate = (parent = null) => {
@@ -161,12 +209,26 @@ export default function EmpresaCategoriesPanel({ notify, userId }) {
     }
   };
 
+  const deleteCategory = async (category) => {
+    if (!window.confirm(`¿Eliminar “${category.nombre}”? Solo se pueden eliminar categorías sin subcategorías ni productos asignados.`)) return;
+
+    setFeedback('');
+    setError('');
+    try {
+      ensureEmpresaMethodSuccess(await callMeteor('comercio.categorias.eliminar', { categoriaId: category._id }));
+      setFeedback('Categoría eliminada.');
+      notify?.('Categoría eliminada.');
+    } catch (methodError) {
+      setError(methodError?.reason || methodError?.message || 'No se pudo eliminar la categoría.');
+    }
+  };
+
   return (
     <Box className="content-stack empresa-panel">
       <Box className="empresa-panel-heading">
         <Box>
           <Typography variant="h4">Categorías</Typography>
-          <Typography color="text.secondary" variant="body2">El árbol se comparte entre empresas; solo quien creó una categoría puede renombrarla o desactivarla.</Typography>
+          <Typography color="text.secondary" variant="body2">El árbol se comparte entre empresas. Solo quien creó una categoría puede renombrarla, desactivarla o eliminarla.</Typography>
         </Box>
         <Button onClick={() => openCreate()} startIcon={<AddRoundedIcon />} variant="contained">Nueva categoría</Button>
       </Box>
@@ -178,14 +240,43 @@ export default function EmpresaCategoriesPanel({ notify, userId }) {
       {error ? <Alert onClose={() => setError('')} severity="error">{error}</Alert> : null}
       {feedback ? <Alert onClose={() => setFeedback('')} severity="success">{feedback}</Alert> : null}
       {!data.ready ? <Paper className="empresa-loading-inline" elevation={0}><CircularProgress size={22} /><Typography color="text.secondary">Cargando árbol de categorías…</Typography></Paper> : null}
-      {data.ready && !tree.length ? (
-        <Paper className="empresa-empty" elevation={0}><FolderOutlinedIcon color="primary" fontSize="large" /><Typography variant="h6">El árbol empieza aquí</Typography><Typography color="text.secondary" variant="body2">Crea una categoría principal y luego organiza sus subcategorías.</Typography><Button onClick={() => openCreate()} startIcon={<AddRoundedIcon />} variant="contained">Crear primera categoría</Button></Paper>
+      {data.ready ? (
+        <Box className="empresa-category-list">
+          <Box className="empresa-category-list-toolbar">
+            <Box>
+              <Typography component="h3" variant="h6">Árbol de categorías</Typography>
+              <Typography color="text.secondary" variant="body2">El filtro de Mercado Libre incluye también sus categorías descendientes; las categorías Mercado Libre son de solo lectura.</Typography>
+            </Box>
+            <ToggleButtonGroup
+              aria-label="Filtrar categorías por origen"
+              exclusive
+              onChange={(_event, value) => { if (value) setSourceFilter(value); }}
+              size="small"
+              value={sourceFilter}
+            >
+              <ToggleButton aria-label={`Todas las categorías: ${sourceCounts.all}`} value="all">Todas ({sourceCounts.all})</ToggleButton>
+              <ToggleButton aria-label={`Categorías de Mercado Libre: ${sourceCounts.mercadoLibre}`} value="mercadoLibre">Mercado Libre ({sourceCounts.mercadoLibre})</ToggleButton>
+              <ToggleButton aria-label={`Categorías legacy de VIDKAR: ${sourceCounts.legacy}`} value="legacy">Legacy VIDKAR ({sourceCounts.legacy})</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+          <TableContainer component={Paper} className="empresa-category-table" elevation={0}>
+            <Table aria-label="Árbol de categorías">
+              <TableHead><TableRow><TableCell>Categoría</TableCell><TableCell align="right">Acciones y estado</TableCell></TableRow></TableHead>
+              <TableBody>
+                {visibleTree.length ? visibleTree.map((category) => (
+                  <CategoryNode category={category} depth={0} key={category._id} onAddChild={openCreate} onDelete={deleteCategory} onEdit={openEdit} onToggle={toggleCategory} userId={userId} />
+                )) : (
+                  <TableRow>
+                    <TableCell className="empresa-category-empty-row" colSpan={2}>
+                      {data.categories.length ? 'No hay categorías para este filtro.' : 'Todavía no hay categorías. Crea una para empezar.'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
       ) : null}
-      <Box className="empresa-category-tree">
-        {tree.map((category) => (
-          <CategoryNode category={category} depth={0} key={category._id} onAddChild={openCreate} onEdit={openEdit} onToggle={toggleCategory} userId={userId} />
-        ))}
-      </Box>
 
       <Dialog fullWidth maxWidth="xs" onClose={() => !busy && setDialogOpen(false)} open={dialogOpen}>
         <DialogTitle>{editingCategory ? 'Renombrar categoría' : parentCategory ? `Nueva subcategoría de ${parentCategory.nombre}` : 'Nueva categoría principal'}</DialogTitle>

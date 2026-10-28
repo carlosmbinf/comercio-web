@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildCategoryTree, CATEGORY_SELECTION_LIMIT, categoryIdsFor, getCatalogCategories, getCategorySelectionProducts } from '../src/domain/categories.js';
+import { buildCategoryTree, CATEGORY_SELECTION_LIMIT, categoryIdsFor, getCatalogCategories, getCategorySelectionProducts, getCategorySourceGroups } from '../src/domain/categories.js';
 
 const categories = [
   { _id: 'root', nombre: 'Alimentos' },
@@ -66,4 +66,23 @@ test('no conecta como raíz las categorías huérfanas o sin ruta válida', () =
 
   assert.equal(allIds.includes('orphan'), false);
   assert.equal(allIds.includes('orphan-child'), false);
+});
+
+test('el filtro de Mercado Libre incluye descendientes Legacy en toda la rama', () => {
+  const sourceCategories = [
+    { _id: 'market-root', mercadoLibreCategoryId: 'MLU123', nombre: 'Electrodomésticos' },
+    { _id: 'legacy-child', idCategoriaHeredada: 'market-root', nombre: 'Accesorios' },
+    { _id: 'legacy-grandchild', idCategoriaHeredada: 'legacy-child', nombre: 'Fundas' },
+    { _id: 'legacy-root', nombre: 'Artesanía' },
+  ];
+
+  const groups = getCategorySourceGroups(sourceCategories);
+
+  assert.deepEqual(groups.mercadoLibre.map(({ _id }) => _id), [
+    'market-root',
+    'legacy-child',
+    'legacy-grandchild',
+  ]);
+  assert.deepEqual(groups.legacy.map(({ _id }) => _id), ['legacy-root']);
+  assert.equal(groups.all.length, groups.mercadoLibre.length + groups.legacy.length);
 });

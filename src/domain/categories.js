@@ -134,6 +134,34 @@ export function flattenCategoryTree(roots = []) {
   return result;
 }
 
+export function getCategorySourceGroups(categories = []) {
+  const categoriesById = new Map(
+    categories.map((category) => [String(category._id), category]),
+  );
+  const belongsToMercadoLibreBranch = (category) => {
+    const visited = new Set([String(category._id)]);
+    let parentId = String(category.idCategoriaHeredada || '');
+
+    while (parentId && !visited.has(parentId)) {
+      visited.add(parentId);
+      const parent = categoriesById.get(parentId);
+      if (!parent) return false;
+      if (parent.mercadoLibreCategoryId) return true;
+      parentId = String(parent.idCategoriaHeredada || '');
+    }
+
+    return false;
+  };
+  const mercadoLibre = categories.filter((category) =>
+    Boolean(category.mercadoLibreCategoryId) || belongsToMercadoLibreBranch(category));
+
+  return {
+    all: categories,
+    mercadoLibre,
+    legacy: categories.filter((category) => !mercadoLibre.includes(category)),
+  };
+}
+
 export function getPopulatedCategoryRows(categories, categoryIds, products) {
   const categorized = categories.map((category) => ({
     ...category,
