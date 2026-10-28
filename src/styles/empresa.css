@@ -66,6 +66,17 @@
 .empresa-panel { gap: 18px; }
 .empresa-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .empresa-panel-heading > div:first-child { min-width: 0; }
+.empresa-ml-card { display: flex; flex-direction: column; gap: 18px; padding: clamp(18px, 3vw, 26px); border: 1px solid var(--line-soft); border-radius: 20px !important; background: var(--surface-glass) !important; }
+.empresa-ml-section-heading { display: flex; align-items: flex-start; gap: 14px; }
+.empresa-ml-section-heading > div:last-child { min-width: 0; }
+.empresa-ml-section-heading .MuiTypography-body2 { max-width: 760px; margin-top: 4px; }
+.empresa-ml-icon { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 13px; color: var(--accent); background: var(--surface-soft); }
+.empresa-ml-account { padding: 16px; border: 1px solid var(--line-soft); border-radius: 14px; background: var(--surface-soft); }
+.empresa-ml-availability { padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.empresa-ml-availability > div:first-child { flex: 1 1 320px; }
+.empresa-ml-availability .MuiTypography-body2 { max-width: 660px; margin-top: 4px; }
+.empresa-ml-toolbar { padding: 20px; gap: 16px; }
+.empresa-ml-toolbar .MuiTypography-body2 { max-width: 660px; margin-top: 4px; }
 .empresa-metrics-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .empresa-metric { display: flex; flex-direction: column; gap: 5px; padding: 16px 18px; border: 1px solid var(--line-soft); border-radius: 18px !important; background: var(--surface-glass) !important; }
 .empresa-metric strong { font-size: 1.45rem; line-height: 1.15; }

@@ -320,12 +320,15 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       {integration?.status === 'reauthorization_required' ? (
         <Alert severity="warning">La autorización expiró o fue revocada. Vuelve a autorizar para reanudar catálogo y stock.</Alert>
       ) : null}
-      <Paper className="empresa-empty" elevation={0}>
-        <Box>
-          <Typography fontWeight={750} variant="h6">Conexión con Mercado Libre</Typography>
-          <Typography color="text.secondary" variant="body2">
-            La conexión se administra de forma centralizada. Autoriza tu propia cuenta y no compartas tu contraseña fuera del sitio oficial de Mercado Libre.
-          </Typography>
+      <Paper className="empresa-ml-card" elevation={0}>
+        <Box className="empresa-ml-section-heading">
+          <Box className="empresa-ml-icon"><LinkRoundedIcon /></Box>
+          <Box>
+            <Typography fontWeight={750} variant="h6">Conexión con Mercado Libre</Typography>
+            <Typography color="text.secondary" variant="body2">
+              La conexión se administra de forma centralizada. Autoriza tu propia cuenta y no compartas tu contraseña fuera del sitio oficial de Mercado Libre.
+            </Typography>
+          </Box>
         </Box>
         {!oauthAppReady ? (
           <Alert severity="warning">
@@ -336,10 +339,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
         {oauthAppReady && !integration?.oauthApp?.webReturnUrl ? (
           <Alert severity="warning">La conexión aún no puede iniciarse desde este sitio. Contacta con administración.</Alert>
         ) : null}
-      </Paper>
-
-      <Paper className="empresa-empty" elevation={0}>
-        <Box sx={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 1.5, justifyContent: 'space-between' }}>
+        <Box className="empresa-ml-account" sx={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 1.5, justifyContent: 'space-between' }}>
           <Box>
             <Typography fontWeight={750} variant="h6">{configured ? (integration.account?.nickname || `Vendedor ${integration.account?.sellerId || ''}`) : 'Vincula tu cuenta'}</Typography>
             <Typography color="text.secondary" variant="body2">
@@ -367,7 +367,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
         </Box>
 
         {configured ? (
-          <Box sx={{ alignItems: 'center', borderTop: 1, borderColor: 'divider', display: 'flex', flexWrap: 'wrap', gap: 1.5, justifyContent: 'space-between', mt: 2, pt: 2 }}>
+          <Box className="empresa-ml-availability" sx={{ alignItems: 'center', display: 'flex', flexWrap: 'wrap', gap: 1.5, justifyContent: 'space-between' }}>
             <Box>
               <Typography fontWeight={700}>Disponibilidad de la integración</Typography>
               <Typography color="text.secondary" variant="body2">Solo se puede desactivar cuando todas las publicaciones estén cerradas. Ciérralas desde Productos; los artículos locales seguirán disponibles.</Typography>
@@ -393,7 +393,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       </Paper>
 
       {enabled ? (
-        <Paper className="empresa-toolbar" elevation={0}>
+        <Paper className="empresa-toolbar empresa-ml-toolbar" elevation={0}>
           <Box sx={{ flex: 1, minWidth: 240 }}>
             <Typography fontWeight={750} variant="subtitle1">Importar o actualizar catálogo</Typography>
             <Typography color="text.secondary" variant="body2">Incluye publicaciones activas, pausadas, cerradas y en estados relevantes. También vincula los productos ya importados con sus categorías y subcategorías locales.</Typography>
@@ -425,7 +425,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       ) : null}
 
       {enabled && (integration.sellerTags || []).includes('warehouse_management') ? (
-        <Paper className="empresa-toolbar" elevation={0}>
+        <Paper className="empresa-toolbar empresa-ml-toolbar" elevation={0}>
           <Box sx={{ flex: 1, minWidth: 240 }}>
             <Typography fontWeight={750} variant="subtitle1">Depósito de stock multiorigen</Typography>
             <Typography color="text.secondary" variant="body2">Asocia el depósito de Mercado Libre a esta tienda para que las ventas actualicen solo ese stock.</Typography>
