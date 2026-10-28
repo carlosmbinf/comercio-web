@@ -301,11 +301,13 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
   }
 
   return (
-    <Box className="content-stack empresa-panel">
-      <Box className="empresa-panel-heading">
-        <Box>
-          <Typography variant="h4">Mercado Libre Uruguay</Typography>
-          <Typography color="text.secondary" variant="body2">Vincula tu cuenta de vendedor. Cada comercio administra sus propias publicaciones.</Typography>
+    <Box className="content-stack empresa-panel empresa-ml-panel">
+      <Box className="empresa-ml-hero">
+        <Box className="empresa-ml-brand" aria-hidden="true"><StorefrontRoundedIcon /></Box>
+        <Box className="empresa-ml-hero-copy">
+          <Typography className="empresa-ml-eyebrow">CANAL DE VENTAS · URUGUAY</Typography>
+          <Typography component="h2" variant="h4">Mercado Libre</Typography>
+          <Typography color="text.secondary" variant="body2">Conecta tu cuenta y administra tu catálogo desde un solo lugar.</Typography>
         </Box>
         <Chip
           color={enabled ? 'success' : configured ? 'default' : pendingOAuthError ? 'warning' : oauthAppReady ? 'primary' : 'warning'}
@@ -320,11 +322,13 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       {integration?.status === 'reauthorization_required' ? (
         <Alert severity="warning">La autorización expiró o fue revocada. Vuelve a autorizar para reanudar catálogo y stock.</Alert>
       ) : null}
+      <Box className="empresa-ml-workspace">
       <Paper className="empresa-ml-card" elevation={0}>
         <Box className="empresa-ml-section-heading">
           <Box className="empresa-ml-icon"><LinkRoundedIcon /></Box>
           <Box>
-            <Typography fontWeight={750} variant="h6">Conexión con Mercado Libre</Typography>
+            <Typography className="empresa-ml-eyebrow">CUENTA VENDEDORA</Typography>
+            <Typography fontWeight={750} variant="h6">Tu conexión</Typography>
             <Typography color="text.secondary" variant="body2">
               La conexión se administra de forma centralizada. Autoriza tu propia cuenta y no compartas tu contraseña fuera del sitio oficial de Mercado Libre.
             </Typography>
@@ -392,13 +396,16 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
         ) : null}
       </Paper>
 
+      <Box className="empresa-ml-operations">
       {enabled ? (
-        <Paper className="empresa-toolbar empresa-ml-toolbar" elevation={0}>
+        <Paper className="empresa-ml-toolbar" elevation={0}>
           <Box sx={{ flex: 1, minWidth: 240 }}>
-            <Typography fontWeight={750} variant="subtitle1">Importar o actualizar catálogo</Typography>
+            <Typography className="empresa-ml-eyebrow">CATÁLOGO</Typography>
+            <Typography fontWeight={750} variant="h6">Importar o actualizar catálogo</Typography>
             <Typography color="text.secondary" variant="body2">Incluye publicaciones activas, pausadas, cerradas y en estados relevantes. También vincula los productos ya importados con sus categorías y subcategorías locales.</Typography>
           </Box>
-          <FormControl size="small" sx={{ minWidth: 220 }}>
+          <Typography className="empresa-ml-field-label">Tienda destino</Typography>
+          <FormControl size="small" fullWidth>
             <Select
               aria-label="Tienda destino"
               displayEmpty
@@ -425,7 +432,7 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       ) : null}
 
       {enabled && (integration.sellerTags || []).includes('warehouse_management') ? (
-        <Paper className="empresa-toolbar empresa-ml-toolbar" elevation={0}>
+        <Paper className="empresa-ml-toolbar" elevation={0}>
           <Box sx={{ flex: 1, minWidth: 240 }}>
             <Typography fontWeight={750} variant="subtitle1">Depósito de stock multiorigen</Typography>
             <Typography color="text.secondary" variant="body2">Asocia el depósito de Mercado Libre a esta tienda para que las ventas actualicen solo ese stock.</Typography>
@@ -485,6 +492,8 @@ export default function EmpresaMercadoLibrePanel({ notify, stores = [], userId }
       {enabled ? (
         <Alert severity="info">Las publicaciones importadas y los productos locales vinculados se gestionan desde <strong>Productos</strong>. Tener la integración habilitada no garantiza permiso para consultar todos los recursos de Mercado Libre.</Alert>
       ) : null}
+      </Box>
+      </Box>
     </Box>
   );
 }
