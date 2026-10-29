@@ -1,0 +1,4 @@
+- generic [ref=e5]:
+  - text: SEGUIMIENTO DE COMERCIO
+  - heading "Mis pedidos" [level=3] [ref=e6]
+  - paragraph [ref=e7]: Revisa el estado en tiempo real de tus compras activas y consulta el historial finalizado en tabla.

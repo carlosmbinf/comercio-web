@@ -2,6 +2,14 @@
 
 Cliente web independiente construido con React, MUI y Vite. Se conecta al Meteor existente mediante DDP y reutiliza sus sesiones y contratos de negocio.
 
+## Direcciones guardadas en el checkout
+
+En el paso **Entrega**, cada comprador puede seleccionar una dirección de su cuenta o crear una nueva mediante la búsqueda, el mapa o su ubicación actual. Puede guardarla con un nombre, marcarla como predeterminada o eliminar una dirección guardada con confirmación. La primera guardada es predeterminada; el checkout la preselecciona si el carrito todavía no tiene una entrega configurada. Continuar confirma la selección para el pedido.
+
+La libreta persiste hasta 20 direcciones por cuenta en Meteor (`COMERCIO_deliveryAddresses`), compartida entre tiendas y MCP, sin publicaciones públicas. Usa los métodos `comercio.deliveryAddresses.list`, `.save`, `.use`, `.setDefault` y `.remove`, que siempre toman el usuario de la sesión. Aplicar copia dirección y punto al carrito; borrar una dirección guardada no cambia pedidos anteriores. El punto reciente del navegador queda separado por cuenta.
+
+Requiere actualizar el backend Meteor y `comercio-web`; el MCP anuncia herramientas para listar, guardar y seleccionar direcciones con su autorización correspondiente. Las direcciones nuevas conservan el requisito de punto confirmado. No se migran automáticamente ubicaciones históricas a la libreta.
+
 ## Configuración
 
 1. Instala dependencias con `npm install`.

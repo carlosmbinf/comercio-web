@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  Checkbox,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -11,6 +12,7 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  FormControlLabel,
   IconButton,
   InputLabel,
   LinearProgress,
@@ -42,6 +44,8 @@ import { callMeteor, Meteor } from '../meteor/client';
 import { OrdenesCollection } from '../meteor/collections';
 import GoogleAddressAutocomplete from './GoogleAddressAutocomplete';
 import MapPicker from './MapPicker';
+import DeliveryAddressChooser from './DeliveryAddressChooser';
+import { useDeliveryAddresses } from '../hooks/useDeliveryAddresses';
 import './checkout.css';
 
 const STEPS = ['Tu pedido', 'Pago', 'Entrega', 'Condiciones', 'Confirmación'];
@@ -146,6 +150,13 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
   const [street, setStreet] = React.useState('');
   const [houseNumber, setHouseNumber] = React.useState('');
   const [savingLocation, setSavingLocation] = React.useState(false);
+  const [selectedAddressId, setSelectedAddressId] = React.useState('');
+  const [saveAddress, setSaveAddress] = React.useState(false);
+  const [addressLabel, setAddressLabel] = React.useState('');
+  const [makeAddressDefault, setMakeAddressDefault] = React.useState(false);
+  const [addressBusy, setAddressBusy] = React.useState(false);
+  const [addressRemoveTarget, setAddressRemoveTarget] = React.useState(null);
+  const deliveryInitializedRef = React.useRef(false);
   const [preparing, setPreparing] = React.useState(false);
   const [calculatingSummary, setCalculatingSummary] = React.useState(false);
   const [processing, setProcessing] = React.useState(false);
@@ -167,6 +178,9 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
   cartItemsRef.current = cart.items;
 
   const userId = user?._id;
+  const currentUserIdRef = React.useRef(userId);
+  currentUserIdRef.current = userId;
+  const addressBook = useDeliveryAddresses(userId, open);
   const currency = paymentMethod === 'paypal'
     ? 'USD'
     : paymentMethod === 'mercadopago'
@@ -202,7 +216,8 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
   }, [userId]);
 
   React.useEffect(() => {
-    if (!open || point || !cart.items.length) return;
+    if (!open || !userId || addressBook.loading || deliveryInitializedRef.current || !cart.items.length) return;
+    deliveryInitializedRef.current = true;
     const savedItem = cart.items.find((item) => normalizePoint(item?.coordenadas));
     const savedItemPoint = normalizePoint(savedItem?.coordenadas);
     if (savedItemPoint) {
@@ -213,15 +228,27 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
       setHouseNumber(savedHouseNumber);
       setAddressSearch([savedStreet, savedHouseNumber].filter(Boolean).join(', '));
       setGooglePlaceSelected(false);
+      const matchingAddress = addressBook.addresses.find((address) => address.latitude === savedItemPoint.latitude
+        && address.longitude === savedItemPoint.longitude && address.street === savedStreet && address.houseNumber === savedHouseNumber);
+      setSelectedAddressId(matchingAddress?.id || '');
+      return;
+    }
+    const defaultAddress = addressBook.addresses.find((address) => address.isDefault);
+    if (defaultAddress) {
+      setSelectedAddressId(defaultAddress.id);
+      setPoint({ latitude: defaultAddress.latitude, longitude: defaultAddress.longitude });
+      setStreet(defaultAddress.street);
+      setHouseNumber(defaultAddress.houseNumber);
+      setAddressSearch(defaultAddress.street);
       return;
     }
     try {
-      const cached = normalizePoint(JSON.parse(localStorage.getItem('vidkar.web.comercio.last-location') || 'null'));
+      const cached = normalizePoint(JSON.parse(localStorage.getItem(`vidkar.web.comercio.last-location.${userId}`) || 'null'));
       if (cached) setPoint(cached);
     } catch (_error) {
       // La ubicación puede seleccionarse directamente en el mapa.
     }
-  }, [cart.items, open, point]);
+  }, [addressBook.addresses, addressBook.loading, cart.items, open, userId]);
 
   React.useEffect(() => {
     if (!open || paymentMethod !== 'efectivo') return undefined;
@@ -331,6 +358,13 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
     setStreet('');
     setHouseNumber('');
     setSavingLocation(false);
+    setSelectedAddressId('');
+    setSaveAddress(false);
+    setAddressLabel('');
+    setMakeAddressDefault(false);
+    setAddressBusy(false);
+    setAddressRemoveTarget(null);
+    deliveryInitializedRef.current = false;
     setPreparing(false);
     setCalculatingSummary(false);
     setProcessing(false);
@@ -346,6 +380,8 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
     orderRequestRef.current = '';
     if (waitingTimerRef.current) window.clearTimeout(waitingTimerRef.current);
   }, []);
+
+  React.useEffect(() => { reset(); }, [userId, reset]);
 
   React.useEffect(() => {
     if (
@@ -364,7 +400,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
   }, [activeStep, cart.items.length, cart.loading, open, preparing, processing, reset, savingLocation]);
 
   const close = () => {
-    if (preparing || processing || savingLocation) return;
+    if (preparing || processing || savingLocation || addressBusy) return;
     reset();
     onClose();
   };
@@ -545,30 +581,52 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
       return;
     }
     if (activeStep === 2) {
+      const locationOwner = userId;
       const normalizedPoint = normalizePoint(point);
       if (!normalizedPoint) {
         setError('Marca una ubicación válida en el mapa o usa tu ubicación actual.');
         return;
       }
+      if (!street.trim()) { setError('Indica la calle o dirección que corresponde al punto de entrega.'); return; }
+      if (!selectedAddressId && saveAddress && !addressLabel.trim()) { setError('Ponle un nombre a la dirección, por ejemplo Casa o Trabajo.'); return; }
       setSavingLocation(true);
       try {
-        await callMeteor('carrito.actualizarUbicacion', userId, {
-          latitude: normalizedPoint.latitude,
-          longitude: normalizedPoint.longitude,
-          nombreCalle: street.trim(),
-          numeroCasa: houseNumber.trim(),
-        });
-        setPoint(normalizedPoint);
+        let addressId = selectedAddressId;
+        if (!addressId && saveAddress) {
+          const saved = await callMeteor('comercio.deliveryAddresses.save', {
+            ...normalizedPoint, street: street.trim(), houseNumber: houseNumber.trim(), label: addressLabel.trim(), isDefault: makeAddressDefault,
+          });
+          if (currentUserIdRef.current !== locationOwner) return;
+          if (!saved?.success || !saved.address?.id) throw new Error('No se pudo confirmar el guardado de la dirección.');
+          addressId = saved.address.id;
+          setSelectedAddressId(addressId);
+          addressBook.refresh();
+        }
+        if (addressId) {
+          const applied = await callMeteor('comercio.deliveryAddresses.use', addressId);
+          if (currentUserIdRef.current !== locationOwner) return;
+          if (!applied?.success || !applied.address) throw new Error('No se pudo aplicar la dirección al carrito.');
+          setPoint({ latitude: applied.address.latitude, longitude: applied.address.longitude });
+          setStreet(applied.address.street);
+          setHouseNumber(applied.address.houseNumber);
+        } else {
+          const applied = await callMeteor('carrito.actualizarUbicacion', userId, {
+            ...normalizedPoint, nombreCalle: street.trim(), numeroCasa: houseNumber.trim(),
+          });
+          if (currentUserIdRef.current !== locationOwner) return;
+          if (!applied?.success) throw new Error('No se pudo aplicar la ubicación al carrito.');
+          setPoint(normalizedPoint);
+        }
         try {
-          localStorage.setItem('vidkar.web.comercio.last-location', JSON.stringify(normalizedPoint));
+          localStorage.setItem(`vidkar.web.comercio.last-location.${userId}`, JSON.stringify(normalizedPoint));
         } catch (_error) {
           // No impedir el checkout si el navegador bloquea localStorage.
         }
         setActiveStep(3);
       } catch (locationError) {
-        setError(locationError?.reason || locationError?.message || 'No se pudo guardar la ubicación de entrega.');
+        if (currentUserIdRef.current === locationOwner) setError(locationError?.reason || locationError?.message || 'No se pudo guardar la ubicación de entrega.');
       } finally {
-        setSavingLocation(false);
+        if (currentUserIdRef.current === locationOwner) setSavingLocation(false);
       }
       return;
     }
@@ -585,6 +643,56 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
   const handleBack = () => {
     setError('');
     if (activeStep > 0 && !preparing && !processing) setActiveStep((step) => step - 1);
+  };
+
+  const handleSelectAddress = (address) => {
+    deliveryInitializedRef.current = true;
+    setSelectedAddressId(address.id);
+    setPoint({ latitude: address.latitude, longitude: address.longitude });
+    setStreet(address.street);
+    setHouseNumber(address.houseNumber);
+    setAddressSearch(address.street);
+    setGooglePlaceSelected(false);
+    setSaveAddress(false);
+    setError('');
+  };
+  const handleNewAddress = () => {
+    deliveryInitializedRef.current = true;
+    setSelectedAddressId('');
+    setPoint(null);
+    setStreet('');
+    setHouseNumber('');
+    setAddressSearch('');
+    setGooglePlaceSelected(false);
+    setSaveAddress(false);
+    setAddressLabel('');
+    setMakeAddressDefault(false);
+    setError('');
+  };
+  const handleDefaultAddress = async (address) => {
+    const locationOwner = userId;
+    setAddressBusy(true);
+    setError('');
+    try {
+      await callMeteor('comercio.deliveryAddresses.setDefault', address.id);
+      if (currentUserIdRef.current === locationOwner) addressBook.refresh();
+    } catch (addressError) { if (currentUserIdRef.current === locationOwner) setError(addressError?.reason || 'No se pudo cambiar la dirección predeterminada.'); }
+    finally { if (currentUserIdRef.current === locationOwner) setAddressBusy(false); }
+  };
+  const handleRemoveAddress = async () => {
+    if (!addressRemoveTarget || addressBusy) return;
+    const locationOwner = userId;
+    setAddressBusy(true);
+    setError('');
+    try {
+      const removed = await callMeteor('comercio.deliveryAddresses.remove', addressRemoveTarget.id);
+      if (currentUserIdRef.current !== locationOwner) return;
+      if (!removed?.success) throw new Error('No se pudo eliminar la dirección.');
+      if (selectedAddressId === addressRemoveTarget.id) handleNewAddress();
+      setAddressRemoveTarget(null);
+      addressBook.refresh();
+    } catch (addressError) { if (currentUserIdRef.current === locationOwner) setError(addressError?.reason || addressError.message || 'No se pudo eliminar la dirección.'); }
+    finally { if (currentUserIdRef.current === locationOwner) setAddressBusy(false); }
   };
 
   const handleUseMyLocation = () => {
@@ -634,6 +742,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
   };
 
   const handleMapPointChange = (nextPoint) => {
+    if (savingLocation) return;
     setPoint(nextPoint);
     setGooglePlaceSelected(false);
   };
@@ -765,18 +874,38 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
         <Box className="checkout-step-content">
           <Box className="checkout-section-heading">
             <Box className="checkout-step-icon"><LocationOnOutlinedIcon /></Box>
-            <Box><Typography variant="h6">¿Dónde lo recibes?</Typography><Typography color="text.secondary" variant="body2">Marca el punto exacto. Se usará para calcular el envío y actualizar los artículos de tu carrito.</Typography></Box>
+            <Box><Typography variant="h6">¿Dónde lo recibes?</Typography><Typography color="text.secondary" variant="body2">Elige una dirección guardada o agrega una nueva con su punto exacto para calcular el envío.</Typography></Box>
           </Box>
-          <GoogleAddressAutocomplete
-            onInputValueChange={handleAddressInputChange}
-            onPlaceSelected={handleGooglePlaceSelected}
-            value={addressSearch}
+          <DeliveryAddressChooser
+            addresses={addressBook.addresses} disabled={savingLocation || addressBusy}
+            error={addressBook.error} loading={addressBook.loading}
+            onDefault={handleDefaultAddress} onNew={handleNewAddress} onRemove={setAddressRemoveTarget}
+            onRetry={addressBook.refresh} onSelect={handleSelectAddress} selectedId={selectedAddressId}
           />
-          <MapPicker center={storeCenter} onChange={handleMapPointChange} point={point} />
-          <Button className="use-location-button" onClick={handleUseMyLocation} startIcon={<LocationOnOutlinedIcon />} variant="outlined">Usar mi ubicación actual</Button>
-          <Box className="delivery-address-fields">
-            <TextField label="Número / apartamento" onChange={(event) => setHouseNumber(event.target.value)} value={houseNumber} />
-          </Box>
+          {selectedAddressId ? (
+            <Paper className="delivery-selected-summary" elevation={0}>
+              <LocationOnOutlinedIcon color="primary" />
+              <Box><Typography fontWeight={750}>{street}</Typography><Typography color="text.secondary" variant="body2">{houseNumber || 'Sin número indicado'} · Punto de entrega guardado</Typography></Box>
+            </Paper>
+          ) : <Box className="delivery-new-address" component="fieldset" disabled={savingLocation}>
+            <GoogleAddressAutocomplete
+              onInputValueChange={handleAddressInputChange}
+              onPlaceSelected={handleGooglePlaceSelected}
+              value={addressSearch}
+            />
+            <MapPicker center={storeCenter} onChange={handleMapPointChange} point={point} />
+            <Button className="use-location-button" onClick={handleUseMyLocation} startIcon={<LocationOnOutlinedIcon />} variant="outlined">Usar mi ubicación actual</Button>
+            <Box className="delivery-address-fields">
+              <TextField label="Número / apartamento" inputProps={{ maxLength: 80 }} onChange={(event) => setHouseNumber(event.target.value)} value={houseNumber} />
+            </Box>
+            <Box className="delivery-save-options">
+              <FormControlLabel control={<Checkbox checked={saveAddress} disabled={savingLocation} onChange={(event) => setSaveAddress(event.target.checked)} />} label="Guardar esta dirección para próximas compras" />
+              {saveAddress ? <>
+                <TextField label="Nombre de la dirección" helperText="Por ejemplo: Casa, Trabajo o Casa de mamá" inputProps={{ maxLength: 60 }} onChange={(event) => setAddressLabel(event.target.value)} required value={addressLabel} />
+                <FormControlLabel control={<Checkbox checked={makeAddressDefault} onChange={(event) => setMakeAddressDefault(event.target.checked)} />} label="Usar como dirección predeterminada" />
+              </> : null}
+            </Box>
+          </Box>}
         </Box>
       );
     }
@@ -882,7 +1011,7 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
           <Typography color="text.secondary" variant="overline">{`COMPRA SEGURA · ${companyName.toLocaleUpperCase('es')}`}</Typography>
           <Typography variant="h5">{activeStep === 0 ? 'Carrito de compras' : 'Finaliza tu pedido'}</Typography>
         </Box>
-        <IconButton aria-label="Cerrar checkout" disabled={preparing || processing || savingLocation} onClick={close}><CloseRoundedIcon /></IconButton>
+        <IconButton aria-label="Cerrar checkout" disabled={preparing || processing || savingLocation || addressBusy} onClick={close}><CloseRoundedIcon /></IconButton>
       </DialogTitle>
       <DialogContent className="checkout-dialog-content" dividers>
         <Box className="checkout-mobile-progress">
@@ -897,11 +1026,11 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
       </DialogContent>
       <DialogActions className="checkout-dialog-actions">
         {activeStep > 0 && !success ? (
-          <Button disabled={preparing || processing || savingLocation} onClick={handleBack} startIcon={<ArrowBackRoundedIcon />} variant="text">Atrás</Button>
+          <Button disabled={preparing || processing || savingLocation || addressBusy} onClick={handleBack} startIcon={<ArrowBackRoundedIcon />} variant="text">Atrás</Button>
         ) : <Box sx={{ flex: 1 }} />}
         {activeStep < STEPS.length - 1 ? (
           <Button
-            disabled={!userId || cart.items.length === 0 || hasCartConflict || (activeStep === 1 && !paymentMethod) || (activeStep === 2 && (!point || savingLocation)) || preparing || processing}
+            disabled={!userId || cart.items.length === 0 || hasCartConflict || (activeStep === 1 && !paymentMethod) || (activeStep === 2 && (!point || savingLocation || addressBusy)) || preparing || processing}
             onClick={handleNext}
             size="large"
             variant="contained"
@@ -929,6 +1058,14 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
         </Box>
       ) : null}
     </Dialog>
+      <Dialog onClose={() => !addressBusy && setAddressRemoveTarget(null)} open={Boolean(addressRemoveTarget)}>
+        <DialogTitle>Eliminar dirección guardada</DialogTitle>
+        <DialogContent><Typography>¿Quieres eliminar “{addressRemoveTarget?.label}” de tus direcciones?</Typography></DialogContent>
+        <DialogActions>
+          <Button disabled={addressBusy} onClick={() => setAddressRemoveTarget(null)}>Cancelar</Button>
+          <Button color="error" disabled={addressBusy} onClick={handleRemoveAddress}>Eliminar dirección</Button>
+        </DialogActions>
+      </Dialog>
       <Dialog onClose={() => !removing && setRemoveTarget(null)} open={Boolean(removeTarget)}>
         <DialogTitle>¿Quitar este artículo?</DialogTitle>
         <DialogContent>
