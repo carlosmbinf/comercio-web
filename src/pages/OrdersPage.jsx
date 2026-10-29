@@ -18,6 +18,8 @@ import { Meteor } from '../meteor/client';
 import { VentasRechargeCollection } from '../meteor/collections';
 import FinalizedOrdersTable from '../components/FinalizedOrdersTable';
 import OrderCard from '../components/OrderCard';
+import OrdersHero from '../components/OrdersHero';
+import { useStoreBranding } from '../components/StoreBranding';
 import { getCommerceDisplayName } from '../config';
 import './orders.css';
 
@@ -109,6 +111,7 @@ export function useCommerceOrders(userId, storeIds, retryVersion = 0) {
 
 export function OrdersPage() {
   const { auth, storefront, user } = useOutletContext();
+  const { appearance } = useStoreBranding();
   const [retryVersion, setRetryVersion] = React.useState(0);
   const ordersState = useCommerceOrders(auth?.userId, storefront.storeIds, retryVersion);
   const orders = ordersState.orders;
@@ -139,14 +142,7 @@ export function OrdersPage() {
 
   return (
     <Box className="content-stack orders-page">
-      <Box className="orders-hero">
-        <Box>
-          <Typography className="eyebrow" variant="overline">SEGUIMIENTO DE COMERCIO</Typography>
-          <Typography variant="h3">Mis pedidos</Typography>
-          <Typography color="text.secondary">Revisa el estado en tiempo real de tus compras activas y consulta el historial finalizado en tabla.</Typography>
-        </Box>
-        <Box className="orders-hero-icon"><HistoryRoundedIcon /></Box>
-      </Box>
+      <OrdersHero image={appearance.ordersCover} />
 
       {viewState === 'history' || viewState === 'empty' ? <Box className="orders-metrics">
         <Paper className="order-metric" elevation={0}><Box className="order-metric-icon violet"><ShoppingBagOutlinedIcon /></Box><Box><Typography className="order-metric-value">{orders.length}</Typography><Typography color="text.secondary" variant="caption">PEDIDOS</Typography></Box></Paper>

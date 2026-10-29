@@ -1,6 +1,7 @@
 import { Mongo } from '@meteorrn/core';
 
 export const TiendasComercioCollection = new Mongo.Collection('COMERCIO_tiendas');
+export const WebAppearanceCollection = new Mongo.Collection('COMERCIO_webAppearance');
 export const ProductosComercioCollection = new Mongo.Collection('COMERCIO_productos');
 export const CategoriasComercioCollection = new Mongo.Collection('COMERCIO_categorias');
 export const SeleccionesCatalogoCollection = new Mongo.Collection('COMERCIO_seleccionesCatalogo');

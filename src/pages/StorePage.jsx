@@ -44,6 +44,8 @@ import { CATALOG_LIMIT_STEP, INITIAL_CATALOG_LIMIT, MAX_CATALOG_LIMIT } from '..
 import { buildCategoryTree, CATEGORY_SELECTION_LIMIT, UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories } from '../domain/categories';
 import { useCatalogProducts } from '../hooks/useStorefront';
 import './store.css';
+import BrandImage from '../components/BrandImage';
+import { useStoreBranding } from '../components/StoreBranding';
 
 const AVAILABILITY_OPTIONS = [
   { label: 'Todos los productos', shortLabel: 'Todos', value: 'all' },
@@ -63,6 +65,7 @@ const CURRENCY_OPTIONS = ['CUP', 'UYU', 'USD'];
 export function StorePage() {
   const theme = useTheme();
   const { cart, notify, storefront, user } = useOutletContext();
+  const { appearance } = useStoreBranding();
   const [search, setSearch] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
   const [selectedStore, setSelectedStore] = React.useState('all');
@@ -333,7 +336,8 @@ export function StorePage() {
       </Paper>
 
       {/* BANNER EJECUTIVO COMPACTO */}
-      <section className="store-compact-banner">
+      <section className={`store-compact-banner${appearance.cover ? ' has-brand-image' : ''}`}>
+        <BrandImage src={appearance.cover} className="brand-cover-image" />
         <Box className="store-compact-banner-main">
           <Chip
             className="hero-kicker"
@@ -342,7 +346,7 @@ export function StorePage() {
             size="small"
           />
           <Typography className="store-compact-banner-title" variant="h2">
-            {visibleStores.length === 1 ? (
+            {appearance.headline || (visibleStores.length === 1 ? (
               <>
                 {storeLabel} <span>en tu puerta.</span>
               </>
@@ -350,12 +354,12 @@ export function StorePage() {
               <>
                 Catálogo oficial de <span>{storeLabel}</span>
               </>
-            )}
+            ))}
           </Typography>
           <Typography className="store-compact-banner-desc" variant="body2">
-            {visibleStores.length === 1
+            {appearance.description || (visibleStores.length === 1
               ? visibleStores[0]?.descripcion || 'Selecciona una categoría, busca un producto o carga más resultados según lo que necesites.'
-              : 'Elige una categoría o sucursal arriba para consultar sus productos al instante sin recargar toda la tienda.'}
+              : 'Elige una categoría o sucursal arriba para consultar sus productos al instante sin recargar toda la tienda.')}
           </Typography>
         </Box>
 

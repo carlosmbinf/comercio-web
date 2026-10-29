@@ -13,6 +13,8 @@ import { OrdersPage } from './pages/OrdersPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { StorePage } from './pages/StorePage';
 import { EmpresaPage } from './pages/EmpresaPage';
+import StoreBranding from './components/StoreBranding';
+import { useAppearance } from './hooks/useAppearance';
 
 function ConnectionScreen({ companyName, mode, onRetry, error }) {
   return (
@@ -39,6 +41,7 @@ function ConnectionScreen({ companyName, mode, onRetry, error }) {
 function StoreLayout({ mode, onToggleMode }) {
   const location = useLocation();
   const storefront = useStorefront({ subscribeCategories: location.pathname === '/' });
+  const branding = useAppearance(storefront.companyId);
   const cart = useCommerceCart(storefront.storeIds);
   const [toastMessage, setToastMessage] = React.useState('');
   const notify = React.useCallback((message) => setToastMessage(String(message || '')), []);
@@ -87,17 +90,19 @@ function StoreLayout({ mode, onToggleMode }) {
   }), [auth, cart, notify, storefront, userState.ready, userState.user]);
 
   return (
-    <AppShell
-      cart={cart}
-      mode={mode}
-      onDismissToast={dismissToast}
-      onToggleMode={onToggleMode}
-      storefront={storefront}
-      toastMessage={toastMessage}
-      user={userState.user}
-    >
-      <Outlet context={outletContext} />
-    </AppShell>
+    <StoreBranding branding={branding} mode={mode}>
+      <AppShell
+        cart={cart}
+        mode={mode}
+        onDismissToast={dismissToast}
+        onToggleMode={onToggleMode}
+        storefront={storefront}
+        toastMessage={toastMessage}
+        user={userState.user}
+      >
+        <Outlet context={outletContext} />
+      </AppShell>
+    </StoreBranding>
   );
 }
 

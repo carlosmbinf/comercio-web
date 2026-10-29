@@ -38,6 +38,18 @@ El `.env` local no se versiona. Para producción usa `wss://` y HTTPS.
 - Para gestión se usan publicaciones privadas que filtran y proyectan en el servidor: `comercio.tiendasEmpresa`, `comercio.productosEmpresa` y `comercio.pedidosPreparacion`. Las ventas compartidas entre tiendas conservan la transición global de la app; las órdenes con artículos de otros tipos no se pueden avanzar desde este panel.
 - La tienda pública conserva las publicaciones `tiendas` y `productosComercio` porque su catálogo debe ser visible para compradores. Las publicaciones históricas genéricas, en particular `ventasRecharge`, todavía aceptan selectores amplios y requieren un endurecimiento transversal separado; el nuevo panel no las usa para su cola operativa.
 
+## Apariencia de cada comercio
+
+La cuenta propietaria encuentra **Modo empresa → Apariencia**. Puede elegir una paleta o colores propios, subir un logo, una portada del catálogo, una imagen del login y una portada independiente para la cabecera de **Mis pedidos**, y cambiar los textos de bienvenida. La vista previa permite revisar tienda, login y pedidos en modo claro y oscuro antes de publicar. Las portadas llevan un velo para mantener el texto legible; quitar una imagen recupera el diseño sin fotografía. Restaurar el diseño original prepara un cambio que también requiere pulsar **Publicar apariencia**.
+
+Los colores de texto y botones se ajustan para mantener contraste AA; el fondo se adapta a un tono suave en cada modo. Las imágenes aceptan JPG, PNG o WebP de hasta 8 MB, se reducen en el navegador y el servidor vuelve a validar, redimensionar y convertir a WebP sin metadatos. Cada imagen persistida tiene un máximo de 250 KB; reemplazarla o quitarla no deja archivos huérfanos.
+
+Se guardan en `COMERCIO_webAppearance`, con un documento por cuenta propietaria, compartido por sus sucursales y consumido únicamente por este cliente. `comercio.webAppearance` publica solo `settings`; `comercio.webAppearance.save(settings)` obtiene el destinatario de la sesión y exige rol EMPRESA, términos aceptados y cuenta no bloqueada. No acepta un ID de otra empresa, CSS libre ni URLs de imágenes.
+
+Para habilitarlo deben actualizarse el backend Meteor (`server/comercioAppearance`) y este cliente. Si no hay una personalización guardada, se usa la identidad predeterminada. Si no puede cargarse la configuración, el escaparate conserva ese diseño y el editor ofrece reintentar sin permitir sobrescribir datos que todavía no se leyeron.
+
+Validación enfocada: `npm test` y `npm run build` en este proyecto; `node --test tests/comercioAppearance.test.mjs` en `react-download`.
+
 ## Contratos Meteor reutilizados
 
 ### Sincronización con Mercado Libre

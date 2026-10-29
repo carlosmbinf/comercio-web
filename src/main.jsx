@@ -6,6 +6,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { buildTheme } from './theme';
 import './styles.css';
+import './styles/appearance.css';
 import 'leaflet/dist/leaflet.css';
 
 function readSavedMode() {

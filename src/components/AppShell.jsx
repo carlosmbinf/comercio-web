@@ -3,7 +3,6 @@ import { Avatar, Badge, Box, Button, Container, IconButton, Tooltip, Typography 
 import { NavLink, Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
-import ShoppingBagRoundedIcon from '@mui/icons-material/ShoppingBagRounded';
 import ShoppingCartRoundedIcon from '@mui/icons-material/ShoppingCartRounded';
 import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
@@ -13,6 +12,8 @@ import CheckoutWizard from './CheckoutWizard';
 
 import { getCommerceDisplayName } from '../config';
 import { isConfiguredCommerceOwner } from '../domain/empresa';
+import { BrandLogo } from './BrandImage';
+import { useStoreBranding } from './StoreBranding';
 
 const NAV_ITEMS = [
   { label: 'Tienda', to: '/', icon: <StorefrontRoundedIcon fontSize="small" /> },
@@ -25,6 +26,7 @@ const displayName = (user) =>
 
 export default function AppShell({ children, cart, mode, onDismissToast, onToggleMode, storefront, toastMessage, user }) {
   const [cartOpen, setCartOpen] = React.useState(false);
+  const { appearance } = useStoreBranding();
   const location = useLocation();
   const navigate = useNavigate();
   const storeLabel = getCommerceDisplayName(storefront.stores);
@@ -45,7 +47,7 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
       <Box component="header" className="site-header">
         <Container maxWidth="xl" className="header-inner">
           <RouterLink aria-label="Ir al inicio" className="brand-link" to="/">
-            <Box className="brand-icon"><ShoppingBagRoundedIcon /></Box>
+            <BrandLogo src={appearance.logo} name={storeLabel} />
             <Box sx={{ minWidth: 0 }}>
               <Typography className="brand-title" noWrap>{storeLabel}</Typography>
               <Typography className="brand-caption" noWrap>{`COMPRA LOCAL · ${storeLabel.toLocaleUpperCase('es')}`}</Typography>

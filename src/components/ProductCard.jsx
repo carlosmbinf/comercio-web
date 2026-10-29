@@ -131,6 +131,7 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
         <CardActionArea
           aria-label={`Ver detalles de ${productName}`}
           className="product-card-action"
+          disableRipple
           onClick={() => setDialogOpen(true)}
         >
           <Box className="product-media">
@@ -179,6 +180,7 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
           <Button
             aria-label={available ? `Elegir cantidad de ${productName}` : `Ver detalles de ${productName}`}
             className="product-open-button"
+            disableRipple
             onClick={() => setDialogOpen(true)}
             size="small"
             startIcon={available ? <AddRoundedIcon fontSize="small" /> : undefined}

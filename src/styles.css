@@ -29,7 +29,7 @@ a { color: inherit; text-decoration: none; }
   --line-soft: rgba(35,25,50,.09);
   --muted: #77727f;
   --accent: #7549df;
-  --accent-soft: rgba(117,73,223,.1);
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
   --shadow-soft: 0 18px 55px rgba(36,23,55,.08);
   color: var(--mui-palette-text-primary);
   color-scheme: light;
@@ -58,7 +58,7 @@ a { color: inherit; text-decoration: none; }
   --line-soft: rgba(255,255,255,.09);
   --muted: #aaa5b6;
   --accent: #a78bfa;
-  --accent-soft: rgba(167,139,250,.15);
+  --accent-soft: color-mix(in srgb, var(--accent) 15%, transparent);
   --shadow-soft: 0 22px 65px rgba(0,0,0,.24);
   color-scheme: dark;
 }
@@ -107,7 +107,7 @@ a { color: inherit; text-decoration: none; }
 .brand-icon, .brand-mark {
   display: grid; place-items: center; flex: 0 0 auto;
   color: white; background: linear-gradient(140deg, #8d65ec, #5b37c4);
-  box-shadow: 0 9px 22px rgba(105,66,205,.25);
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 .brand-icon { width: 42px; height: 42px; border-radius: 14px; }
 .brand-title { font: 800 15px/1.2 'Manrope', sans-serif; letter-spacing: -.03em; }
@@ -121,7 +121,7 @@ a { color: inherit; text-decoration: none; }
 .header-avatar { width: 28px !important; height: 28px !important; font-size: 12px !important; }
 .profile-label { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .page-frame { flex: 1 0 auto; padding-top: 34px; padding-bottom: 52px; }
-.page-enter { animation: page-enter 300ms cubic-bezier(.2,.75,.25,1) both; }
+.page-enter { animation: page-enter 300ms cubic-bezier(.2,.75,.25,1); }
 @keyframes page-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 .site-footer { flex-shrink: 0; border-top: 1px solid var(--line-soft); background: var(--surface-glass); }
 .footer-inner { min-height: 70px; display: flex !important; align-items: center; justify-content: space-between; gap: 14px; }
@@ -167,7 +167,7 @@ a { color: inherit; text-decoration: none; }
   filter: drop-shadow(0 11px 22px rgba(66,133,244,.24));
   transform: translateY(-1px);
 }
-.login-google-button:focus-within { outline-color: rgba(117,73,223,.3); }
+.login-google-button:focus-within { outline-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 .login-google-button:active:not([aria-busy='true']) { transform: translateY(0); }
 .login-google-button[aria-busy='true'] { filter: none; transform: none; }
 

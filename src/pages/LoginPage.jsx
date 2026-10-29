@@ -9,11 +9,14 @@ import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
 
 import { getCommerceDisplayName } from '../config';
 import { getGoogleClientConfig, loginWithGoogleIdToken, loginWithPassword } from '../meteor/client';
+import BrandImage, { BrandLogo } from '../components/BrandImage';
+import { useStoreBranding } from '../components/StoreBranding';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { auth, storefront } = useOutletContext();
+  const { appearance } = useStoreBranding();
   const companyName = getCommerceDisplayName(storefront?.stores);
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -91,9 +94,10 @@ export function LoginPage() {
 
   return (
     <Box className="login-layout">
-      <Box className="login-story">
+      <Box className={`login-story branded-login-story${appearance.loginImage ? ' has-brand-image' : ''}`}>
+        <BrandImage src={appearance.loginImage} className="brand-cover-image" />
         <Typography className="eyebrow" variant="overline">TU COMERCIO FAVORITO, MÁS CERCA</Typography>
-        <Typography className="login-headline" variant="h2">Todo lo que te gusta, en un solo lugar.</Typography>
+        <Typography className="login-headline" variant="h2">{appearance.loginHeadline || 'Todo lo que te gusta, en un solo lugar.'}</Typography>
         <Typography color="text.secondary" sx={{ maxWidth: 460, lineHeight: 1.8 }}>
           Accede para guardar tus compras, seguir cada pedido y comprar de forma sencilla en {companyName}.
         </Typography>
@@ -105,7 +109,7 @@ export function LoginPage() {
       <Card className="login-card" elevation={0}>
         <CardContent>
           <Box className="login-card-heading">
-            <Box className="login-icon"><LoginRoundedIcon /></Box>
+            {appearance.logo ? <BrandLogo src={appearance.logo} name={companyName} /> : <Box className="login-icon"><LoginRoundedIcon /></Box>}
             <Typography color="text.secondary" variant="overline">BIENVENIDO DE NUEVO</Typography>
             <Typography variant="h4">Inicia sesión</Typography>
             <Typography color="text.secondary" variant="body2">Inicia sesión para continuar con tu compra en {companyName}.</Typography>

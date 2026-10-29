@@ -1,6 +1,7 @@
 import React from 'react';
 import Slide from '@mui/material/Slide';
 import { createTheme } from '@mui/material/styles';
+import { appearanceTokens } from './domain/appearance';
 
 const DialogSlideUpTransition = React.forwardRef(function DialogSlideUpTransition(props, ref) {
   const prefersReducedMotion = typeof window !== 'undefined'
@@ -10,20 +11,21 @@ const DialogSlideUpTransition = React.forwardRef(function DialogSlideUpTransitio
   return React.createElement(Slide, { ...transitionProps, direction: 'up', ref });
 });
 
-export const buildTheme = (mode) =>
-  createTheme({
+export const buildTheme = (mode, appearance) => {
+  const tokens = appearanceTokens(appearance, mode);
+  return createTheme({
     palette: {
       mode,
-      primary: { main: mode === 'dark' ? '#8b5cf6' : '#6d45d8' },
-      secondary: { main: '#f97316' },
+      primary: { main: tokens.primary, contrastText: tokens.onPrimary },
+      secondary: { main: tokens.secondary, contrastText: tokens.onSecondary },
       success: { main: '#15803d' },
       background: {
-        default: mode === 'dark' ? '#0c0c12' : '#f7f7f9',
-        paper: mode === 'dark' ? '#15151e' : '#ffffff',
+        default: tokens.background,
+        paper: tokens.paper,
       },
       text: {
-        primary: mode === 'dark' ? '#f7f5fc' : '#201d27',
-        secondary: mode === 'dark' ? '#aaa5b6' : '#6f6b78',
+        primary: tokens.text,
+        secondary: tokens.muted,
       },
       divider: mode === 'dark' ? 'rgba(255,255,255,.09)' : 'rgba(35,25,50,.09)',
     },
@@ -65,3 +67,4 @@ export const buildTheme = (mode) =>
       },
     },
   });
+};

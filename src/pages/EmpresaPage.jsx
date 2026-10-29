@@ -9,6 +9,7 @@ import CategoryRoundedIcon from '@mui/icons-material/CategoryRounded';
 import ExitToAppRoundedIcon from '@mui/icons-material/ExitToAppRounded';
 import CloudSyncRoundedIcon from '@mui/icons-material/CloudSyncRounded';
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
+import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import { Navigate, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 
 import { isCompanyConfigured } from '../config';
@@ -20,9 +21,11 @@ import EmpresaProductsPanel from '../components/empresa/EmpresaProductsPanel';
 import EmpresaStoresPanel from '../components/empresa/EmpresaStoresPanel';
 import EmpresaMercadoLibrePanel from '../components/empresa/EmpresaMercadoLibrePanel';
 import EmpresaFundsPanel from '../components/empresa/EmpresaFundsPanel';
+import EmpresaAppearancePanel from '../components/empresa/EmpresaAppearancePanel';
 import '../styles/empresa.css';
 
 const SECTIONS = [
+  { icon: <PaletteRoundedIcon />, label: 'Apariencia', value: 'apariencia' },
   { icon: <LocalShippingOutlinedIcon />, label: 'Pedidos', value: 'pedidos' },
   { icon: <Inventory2RoundedIcon />, label: 'Productos', value: 'productos' },
   { icon: <StorefrontRoundedIcon />, label: 'Tiendas', value: 'tiendas' },
@@ -224,6 +227,9 @@ export function EmpresaPage() {
       </Paper>
 
       <Box className="empresa-section" role="tabpanel">
+        <Box hidden={section !== 'apariencia'}>
+          <EmpresaAppearancePanel key={storefront.companyId} notify={notify} storefront={storefront} />
+        </Box>
         {section === 'pedidos' ? <EmpresaOrdersPanel notify={notify} storeIds={storefront.storeIds} stores={storefront.stores} userId={auth.userId} /> : null}
         {section === 'productos' ? <EmpresaProductsPanel notify={notify} storefront={storefront} user={user} /> : null}
         {section === 'tiendas' ? <EmpresaStoresPanel notify={notify} storefront={storefront} user={user} /> : null}
