@@ -146,6 +146,7 @@ export default function EmpresaProductDialog({
       price: product?.precio != null ? String(product.precio) : '',
       storeId: product?.idTienda || firstStoreId,
       currency: product?.monedaPrecio || 'USD',
+      commissionPayer: product?.comisionesMercadoPago || (product?.mercadoLibre?.source === 'mercadolibre' ? 'EMPRESA' : 'CLIENTE'),
     });
     setError('');
     setShowComment(Boolean(product?.comentario));
@@ -470,6 +471,7 @@ export default function EmpresaProductDialog({
           name,
           precio: price,
           productoDeElaboracion: Boolean(form.madeToOrder),
+          comisionesMercadoPago: form.commissionPayer,
         },
       });
       pendingImagesRef.current.forEach((image) => URL.revokeObjectURL(image.previewUrl));
@@ -689,6 +691,14 @@ export default function EmpresaProductDialog({
                     type="number"
                     value={form.price}
                   />
+
+                  <TextField select fullWidth label="Comisiones al pagar con Mercado Pago"
+                    value={form.commissionPayer || 'CLIENTE'}
+                    onChange={(event) => update('commissionPayer', event.target.value)}
+                    helperText="Si las asume la empresa, se descontarán del saldo del producto. El envío lo paga el cliente.">
+                    <MenuItem value="CLIENTE">Las paga el cliente</MenuItem>
+                    <MenuItem value="EMPRESA">Las asume la empresa</MenuItem>
+                  </TextField>
 
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2 }}>
                     <Typography color="text.secondary" variant="caption">Disponibilidad del producto:</Typography>

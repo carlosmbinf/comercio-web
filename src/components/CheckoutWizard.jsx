@@ -445,7 +445,11 @@ export default function CheckoutWizard({ cart, onClose, onCompleted, onLogin, op
       if (!calculatedFees || typeof calculatedFees !== 'object') {
         throw new Error('No se pudieron calcular los costos de entrega.');
       }
-      const summary = await getSummaryValues(calculatedFees, currency);
+      let summary = await getSummaryValues(calculatedFees, currency);
+      if (paymentMethod === 'mercadopago') {
+        const quote = await callMeteor('mercadopago.resumenComercio', itemsForCheckout, currency);
+        if (quote) summary = { ...summary, commissionTotal: quote.customerCommerce, subtotalAndFees: summary.subtotal + quote.customerCommerce };
+      }
       const totalMethod = paymentMethod === 'paypal'
         ? 'paypal.totalAPagar'
         : paymentMethod === 'mercadopago'
