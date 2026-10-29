@@ -2,11 +2,19 @@ import React from 'react';
 import {
   Alert, Box, Button, Card, CardContent, Checkbox, Chip, CircularProgress,
   Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel,
-  MenuItem, Paper, TextField, Typography,
+  MenuItem, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material';
 import AccountBalanceWalletRoundedIcon from '@mui/icons-material/AccountBalanceWalletRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
+import SchoolRoundedIcon from '@mui/icons-material/SchoolRounded';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import PaymentsRoundedIcon from '@mui/icons-material/PaymentsRounded';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded';
+import AccountBalanceWalletOutlinedIcon from '@mui/icons-material/AccountBalanceWalletOutlined';
 import { callMeteor, Meteor } from '../../meteor/client';
+import EmpresaFundsManual from './EmpresaFundsManual';
 import {
   buildDestinationPayload,
   getDefaultDestinationMethod,
@@ -26,6 +34,8 @@ const EMPTY_FORM = {
 const METHOD_LABELS = {
   MERCADOPAGO: 'Mercado Pago', PAYPAL: 'PayPal', REMESA: 'Remesa a Cuba', TRANSFERENCIA: 'Banco en Uruguay',
 };
+const SALE_METHOD_LABELS = { PAYPAL: 'PayPal', MERCADOPAGO: 'Mercado Pago' };
+const ROLE_LABELS = { STORE_OWNER: 'Venta de producto', VIDKAR: 'Comisión VIDKAR', PROFESSOR: 'Ingreso como profesor', ADMIN: 'Comisión de administración', GENERAL_ADMIN: 'Comisión de administración general' };
 const STATUS_LABELS = {
   CANCELED: 'Reserva cancelada', FAILED: 'Cancelada sin entrega', IN_PROCESS: 'En proceso',
   PAID: 'Pagada', RESERVED: 'Saldo reservado', UNKNOWN: 'Pendiente de conciliación',
@@ -52,6 +62,18 @@ const getStatusLabel = (status) => STATUS_LABELS[status] || status || 'Estado no
 
 export default function EmpresaFundsPanel({ userId }) {
   const [revision, setRevision] = React.useState(0);
+  const [linePage, setLinePage] = React.useState(0);
+  const [historyPage, setHistoryPage] = React.useState(0);
+  const [requestPage, setRequestPage] = React.useState(0);
+  const [historicalPage, setHistoricalPage] = React.useState(0);
+  const [lineDomain, setLineDomain] = React.useState('');
+  const [lineCurrency, setLineCurrency] = React.useState('');
+  const [selectedLine, setSelectedLine] = React.useState(null);
+  const [selectedPayment, setSelectedPayment] = React.useState(null);
+  const [paymentForm, setPaymentForm] = React.useState(null);
+  const [paymentWorking, setPaymentWorking] = React.useState(false);
+  const [paymentSubmitted, setPaymentSubmitted] = React.useState(false);
+  const [paymentError, setPaymentError] = React.useState('');
   const [summaryState, setSummaryState] = React.useState({ ownerId: '', data: null, loading: true, error: '' });
   const [notice, setNotice] = React.useState('');
   const [destinationDialog, setDestinationDialog] = React.useState(false);
@@ -69,24 +91,26 @@ export default function EmpresaFundsPanel({ userId }) {
       return () => { active = false; };
     }
 
-    setSummaryState({ ownerId: userId, data: null, loading: true, error: '' });
-    callMeteor('pagos.liquidaciones.resumen', userId, {}).then((data) => {
+    setSummaryState((current) => current.ownerId === userId && current.data
+      ? { ...current, error: '' }
+      : { ownerId: userId, data: null, loading: true, error: '' });
+    callMeteor('pagos.liquidaciones.resumen', userId, { page: linePage, historyPage, manualHistoryPage: requestPage, historicalPage, domain: lineDomain, currency: lineCurrency }).then((data) => {
       if (active && Meteor.userId() === userId) {
         setSummaryState({ ownerId: userId, data, loading: false, error: '' });
       }
     }).catch((error) => {
       if (active && Meteor.userId() === userId) {
-        setSummaryState({
+        setSummaryState((current) => ({
           ownerId: userId,
-          data: null,
+          data: current.ownerId === userId ? current.data : null,
           loading: false,
           error: error?.reason || error?.message || 'No se pudo consultar el resumen de fondos.',
-        });
+        }));
       }
     });
 
     return () => { active = false; };
-  }, [revision, userId]);
+  }, [revision, userId, linePage, historyPage, requestPage, historicalPage, lineDomain, lineCurrency]);
 
   React.useEffect(() => {
     if (!destinationDialog || destinationForm.method !== 'REMESA') {
@@ -115,7 +139,7 @@ export default function EmpresaFundsPanel({ userId }) {
   const summaryError = summaryState.ownerId === userId ? summaryState.error : '';
   const destinations = Array.isArray(currentSummary?.destinations) ? currentSummary.destinations : [];
   const balances = Array.isArray(currentSummary?.balances) ? currentSummary.balances : [];
-  const requests = Array.isArray(currentSummary?.manualRequests) ? currentSummary.manualRequests : [];
+  const requests = [...new Map([...(currentSummary?.manualRequests || []).filter((request) => ['RESERVED', 'IN_PROCESS', 'UNKNOWN'].includes(request.status)), ...(currentSummary?.manualHistory || [])].map((request) => [request._id, request])).values()];
   const allowedRemesaCurrencies = React.useMemo(
     () => getRemittanceCurrenciesForBalance(destinationForm.currency, remesaOptions),
     [destinationForm.currency, remesaOptions],
@@ -191,7 +215,7 @@ export default function EmpresaFundsPanel({ userId }) {
       await callMeteor('pagos.liquidaciones.destino.guardar', buildDestinationPayload(destinationForm));
       setDestinationDialog(false);
       setDestinationForm(EMPTY_FORM);
-      setNotice('Destino guardado. El servidor devuelve solo una máscara; administración procesa la liquidación desde su pantalla autorizada.');
+      setNotice('Destino guardado correctamente. Ya puedes usarlo para solicitar tus cobros.');
       setRevision((value) => value + 1);
     } catch (error) {
       setDestinationError(error?.reason || error?.message || 'No se pudo guardar el destino. Revisa los datos e inténtalo de nuevo.');
@@ -199,6 +223,38 @@ export default function EmpresaFundsPanel({ userId }) {
       setDestinationWorking(false);
     }
   };
+
+  const openPayment = (balance) => {
+    const destination = destinations.find((entry) => entry.currency === balance.currency);
+    const requestId = Array.from(crypto.getRandomValues(new Uint8Array(24)), (byte) => byte.toString(16).padStart(2, '0')).join('');
+    setPaymentForm({ requestId, beneficiaryId: userId, domain: balance.domain, currency: balance.currency, destinationVersion: destination?.version, paymentType: 'TOTAL', amount: '', available: balance.payable, method: destination?.method });
+    setPaymentSubmitted(false);
+    setPaymentError('');
+  };
+  const closePayment = () => {
+    if (paymentWorking) return;
+    if (paymentSubmitted && !window.confirm('La reserva pudo haberse creado. Es más seguro reintentar con la misma solicitud. ¿Cerrar y actualizar el saldo?')) return;
+    setPaymentForm(null);
+    setRevision((value) => value + 1);
+  };
+  const preparePayment = async () => {
+    if (Meteor.userId() !== userId || paymentForm.beneficiaryId !== userId) {
+      setPaymentError('Vuelve a entrar con la cuenta propietaria antes de solicitar el cobro.');
+      return;
+    }
+    setPaymentWorking(true); setPaymentSubmitted(true); setPaymentError('');
+    const { available, method, ...payload } = paymentForm;
+    try {
+      const result = await callMeteor('pagos.liquidaciones.solicitar', payload);
+      setNotice(`${result.reused ? 'Reserva existente' : 'Saldo reservado'}: ${formatMoney(result.amount, result.currency)}. La reserva no envía dinero; administración continuará el proceso.`);
+      setPaymentForm(null);
+      setRevision((value) => value + 1);
+    } catch (failure) { setPaymentError(failure.reason || failure.message || 'No se pudo reservar el saldo.'); }
+    finally { setPaymentWorking(false); }
+  };
+  const partialValue = Number(String(paymentForm?.amount || '').replace(',', '.'));
+  const paymentInvalid = !paymentForm?.destinationVersion || (paymentForm?.paymentType === 'PARTIAL'
+    && (!/^\d+(?:[.,]\d{1,2})?$/.test(paymentForm.amount.trim()) || partialValue <= 0 || partialValue > paymentForm.available));
 
   const destinationFormInvalid = !destinationForm.holderName.trim()
     || destinationForm.confirmOwnership !== true
@@ -224,7 +280,7 @@ export default function EmpresaFundsPanel({ userId }) {
       </Box>
 
       <Alert severity="info">
-        PayPal admite USD; Mercado Pago, UYU; y el banco en Uruguay, USD o UYU. El saldo CUP solo se liquida mediante REMESA/FONDO, cobrada y entregada por el mismo importe CUP. Configurar un destino no solicita ni ejecuta un pago: administración procesa las liquidaciones de forma manual.
+        PayPal admite USD; Mercado Pago, UYU; y el banco en Uruguay, USD o UYU. El saldo CUP solo se liquida mediante REMESA/FONDO, cobrada y entregada por el mismo importe CUP. La solicitud reserva el saldo; administración procesa y concilia la liquidación de forma manual.
       </Alert>
       {notice ? <Alert onClose={() => setNotice('')} severity="success">{notice}</Alert> : null}
       {summaryError ? <Alert action={<Button color="inherit" disabled={loading} onClick={() => setRevision((value) => value + 1)} size="small">Reintentar</Button>} severity="error">{summaryError}</Alert> : null}
@@ -252,6 +308,11 @@ export default function EmpresaFundsPanel({ userId }) {
                         <Box><span>Pagado</span><strong>{formatMoney(balance.paid, balance.currency)}</strong></Box>
                         <Box><span>En reserva</span><strong>{formatMoney(balance.reserved, balance.currency)}</strong></Box>
                       </Box>
+                      {balance.reconciliationRequired ? <Alert severity="warning">Los pagos históricos requieren conciliación antes de solicitar este saldo.</Alert> : null}
+                      {Number(balance.balance) < 0 ? <Alert severity="warning">Un ajuste de ventas reduce futuras liquidaciones.</Alert> : null}
+                      <Button disabled={Number(balance.payable) <= 0 || balance.reconciliationRequired || paymentWorking || !destinations.some((entry) => entry.currency === balance.currency && entry.status === 'BENEFICIARY_CONFIRMED' && entry.compatible !== false)} onClick={() => openPayment(balance)} variant="contained">
+                        {balance.currency === 'CUP' ? 'Preparar remesa' : 'Solicitar cobro'}
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -280,7 +341,7 @@ export default function EmpresaFundsPanel({ userId }) {
                       </Box>
                       {destination ? <Chip color={destination.compatible === false ? 'warning' : 'success'} label={destination.compatible === false ? 'Actualizar destino' : destination.status === 'BENEFICIARY_CONFIRMED' ? 'Confirmado' : 'Revisar'} size="small" /> : null}
                     </Box>
-                    {destination ? <Typography color="text.secondary" variant="body2">Dato protegido: {destination.masked || 'Máscara no disponible'} · versión {destination.version}</Typography> : null}
+                    {destination ? <Typography color="text.secondary" variant="body2">Cuenta: {destination.masked || 'No disponible'}</Typography> : null}
                     {currency === 'CUP' ? <Typography color="text.secondary" variant="caption">Solo REMESA con entrega exacta en CUP.</Typography> : null}
                     <Button disabled={destinationWorking} onClick={() => openDestinationEditor(currency)} size="small" variant="outlined">
                       {destination ? 'Actualizar destino' : 'Configurar destino'}
@@ -294,37 +355,112 @@ export default function EmpresaFundsPanel({ userId }) {
             </Typography>
           </Box>
 
-          <Box>
-            <Typography sx={{ mb: 1.5 }} variant="h6">Solicitudes de liquidación</Typography>
-            <Alert severity="info" sx={{ mb: 1.5 }}>
-              Este historial es de solo lectura. No hay una acción de solicitud de pago en la cuenta del beneficiario; la preparación y conciliación se realizan desde la pantalla autorizada de administración.
-            </Alert>
-            {requests.length ? (
-              <Box className="empresa-funds-history">
-                {requests.map((request) => (
-                  <Paper className="empresa-funds-history-row" elevation={0} key={request._id}>
-                    <Box>
-                      <Typography fontWeight={750} variant="body2">
-                        {formatMoney(request.amount, request.currency)} · {request.domain === 'CURSO' ? 'Cursos' : 'Comercio'} · {getMethodLabel(request.paymentMethod, request.currency)}
-                      </Typography>
-                      <Typography color="text.secondary" variant="caption">
-                        {getStatusLabel(request.status)} · {request.destinationMask || 'Destino no disponible'} · {formatDate(request.createdAt)}
-                      </Typography>
-                    </Box>
-                  </Paper>
-                ))}
-              </Box>
-            ) : <Paper className="empresa-funds-empty" elevation={0}><Typography color="text.secondary" variant="body2">No hay solicitudes de liquidación registradas.</Typography></Paper>}
-          </Box>
+          {currentSummary.totalIssues > 0 ? <Alert severity="warning">Hay {currentSummary.totalIssues} ingresos que necesitan revisión antes de incluirse en el saldo.</Alert> : null}
+          <Paper className="empresa-funds-table-card" elevation={0}>
+            <Box className="empresa-funds-table-header"><Box><Box className="empresa-funds-table-title"><Typography variant="h5">Ingresos por venta</Typography><Chip className="empresa-funds-table-count" size="small" label={`${currentSummary.totalLines || 0} ingresos`} /></Box><Typography color="text.secondary" variant="body2">Consulta cómo se compone tu saldo.</Typography></Box>
+              <Box className="empresa-funds-filters"><TextField size="small" select label="Origen" value={lineDomain} onChange={(event) => { setLineDomain(event.target.value); setLinePage(0); }}><MenuItem value="">Todos</MenuItem><MenuItem value="COMERCIO">Comercio</MenuItem><MenuItem value="CURSO">Cursos</MenuItem></TextField><TextField size="small" select label="Moneda" value={lineCurrency} onChange={(event) => { setLineCurrency(event.target.value); setLinePage(0); }}><MenuItem value="">Todas</MenuItem>{['CUP', 'USD', 'UYU'].map((currency) => <MenuItem key={currency} value={currency}>{currency}</MenuItem>)}</TextField></Box>
+            </Box>
+            <TableContainer className="empresa-funds-table-wrap">
+              <Table className="empresa-funds-table" aria-label="Ingresos por venta">
+                <TableHead><TableRow><TableCell>Venta / producto</TableCell><TableCell>Concepto</TableCell><TableCell align="right">Ingreso</TableCell><TableCell align="right">Cobrado</TableCell><TableCell align="right">Reservado</TableCell><TableCell align="right">Disponible</TableCell><TableCell align="right"><span className="empresa-funds-visually-hidden">Detalle</span></TableCell></TableRow></TableHead>
+                <TableBody>{(currentSummary.lines || []).map((line) => <TableRow key={line.key}>
+                  <TableCell><Typography fontWeight={750} variant="body2">{line.label || 'Venta'}</Typography><Typography color="text.secondary" variant="caption">{formatDate(line.createdAt)}{line.storeTitle ? ` · ${line.storeTitle}` : ''}</Typography></TableCell>
+                  <TableCell><Typography variant="body2">{ROLE_LABELS[line.role] || (line.domain === 'CURSO' ? 'Curso' : 'Comercio')}</Typography><Typography color="text.secondary" variant="caption">{SALE_METHOD_LABELS[line.method] || 'Método no disponible'}</Typography></TableCell>
+                  <TableCell align="right">{formatMoney(line.amount, line.currency)}</TableCell><TableCell align="right">{formatMoney(line.paid, line.currency)}</TableCell><TableCell align="right">{formatMoney(line.reserved, line.currency)}</TableCell><TableCell align="right" className="empresa-funds-table-available">{formatMoney(line.pending, line.currency)}</TableCell>
+                  <TableCell align="right"><Button size="small" variant="outlined" onClick={() => setSelectedLine(line)} aria-label={`Ver detalle de ${line.label || 'la venta'}`}>Ver detalle</Button></TableCell>
+                </TableRow>)}{!currentSummary.lines?.length ? <TableRow><TableCell colSpan={7}>No hay ingresos para estos filtros.</TableCell></TableRow> : null}</TableBody>
+              </Table>
+            </TableContainer>
+            <Box className="empresa-funds-pagination"><Button disabled={linePage === 0} onClick={() => setLinePage((page) => page - 1)}>Anterior</Button><Typography color="text.secondary" variant="body2">Página {linePage + 1} · {currentSummary.totalLines || 0} ingresos</Typography><Button disabled={(linePage + 1) * 25 >= currentSummary.totalLines} onClick={() => setLinePage((page) => page + 1)}>Siguiente</Button></Box>
+          </Paper>
+          <Paper className="empresa-funds-table-card" elevation={0}>
+            <Box className="empresa-funds-table-header"><Box><Box className="empresa-funds-table-title"><Typography variant="h5">Cobros realizados</Typography><Chip className="empresa-funds-table-count" size="small" label={`${currentSummary.totalPayments || 0} cobros`} /></Box><Typography color="text.secondary" variant="body2">Revisa los pagos registrados en tu cuenta.</Typography></Box></Box>
+            <TableContainer className="empresa-funds-table-wrap">
+              <Table className="empresa-funds-table" aria-label="Cobros realizados">
+                <TableHead><TableRow><TableCell>Fecha</TableCell><TableCell>Origen</TableCell><TableCell>Método de cobro</TableCell><TableCell>Referencia</TableCell><TableCell align="right">Importe</TableCell><TableCell align="right">Detalle</TableCell></TableRow></TableHead>
+                <TableBody>
+                  {(currentSummary.payments || []).map((payment) => <TableRow key={payment._id}>
+                    <TableCell><Typography variant="body2">{formatDate(payment.createdAt)}</Typography></TableCell>
+                    <TableCell><Typography variant="body2">{payment.domain === 'CURSO' ? 'Cursos' : 'Comercio'}</Typography><Typography color="text.secondary" variant="caption">{payment.paymentType === 'PARTIAL' ? 'Cobro parcial' : payment.paymentType === 'TOTAL' ? 'Cobro total' : ''}</Typography></TableCell>
+                    <TableCell><Typography variant="body2">{getMethodLabel(payment.paymentMethod, payment.currency)}</Typography></TableCell>
+                    <TableCell><Typography color={payment.paymentReference ? 'text.primary' : 'text.secondary'} variant="body2">{payment.paymentReference || '—'}</Typography></TableCell>
+                    <TableCell align="right"><Typography fontWeight={750} variant="body2">{formatMoney(payment.amount, payment.currency)}</Typography></TableCell>
+                    <TableCell align="right"><Button size="small" variant="outlined" onClick={() => setSelectedPayment(payment)} aria-label={`Ver detalle del cobro de ${formatMoney(payment.amount, payment.currency)}`}>Ver detalle</Button></TableCell>
+                  </TableRow>)}
+                  {!currentSummary.payments?.length ? <TableRow><TableCell colSpan={6}><Typography color="text.secondary" variant="body2">Todavía no tienes cobros registrados.</Typography></TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Box className="empresa-funds-pagination"><Button disabled={historyPage === 0} onClick={() => setHistoryPage((page) => page - 1)}>Anterior</Button><Typography color="text.secondary" variant="body2">Página {historyPage + 1} · {currentSummary.totalPayments || 0} cobros</Typography><Button disabled={(historyPage + 1) * 25 >= currentSummary.totalPayments} onClick={() => setHistoryPage((page) => page + 1)}>Siguiente</Button></Box>
+          </Paper>
+          {currentSummary.historicalCount > 0 ? <Box className="empresa-funds-section"><Box><Typography variant="h6">Cobros anteriores de cursos</Typography><Typography color="text.secondary" variant="body2">Estos cobros están pendientes de revisión y no se descuentan nuevamente.</Typography></Box><Box className="empresa-funds-history">{(currentSummary.historicalPayments || []).map((payment) => <Paper className="empresa-funds-history-row" elevation={0} key={payment._id}><Typography fontWeight={700}>{formatMoney(payment.amountUsd, 'USD')}</Typography><Typography color="text.secondary" variant="body2">{formatDate(payment.createdAt)}{payment.paymentReference ? ` · ${payment.paymentReference}` : ''}</Typography></Paper>)}</Box><Box className="empresa-funds-pagination"><Button disabled={historicalPage === 0} onClick={() => setHistoricalPage((page) => page - 1)}>Anterior</Button><Typography color="text.secondary" variant="body2">Página {historicalPage + 1} · {currentSummary.historicalCount} cobros</Typography><Button disabled={(historicalPage + 1) * 25 >= currentSummary.historicalCount} onClick={() => setHistoricalPage((page) => page + 1)}>Siguiente</Button></Box></Box> : null}
+
+          <Paper className="empresa-funds-table-card" elevation={0}>
+            <Box className="empresa-funds-table-header"><Box><Box className="empresa-funds-table-title"><Typography variant="h5">Solicitudes de liquidación</Typography><Chip className="empresa-funds-table-count" size="small" label={`${currentSummary.totalManualHistory || 0} solicitudes`} /></Box><Typography color="text.secondary" variant="body2">Una reserva no significa que el dinero haya sido enviado ni que una remesa haya sido entregada.</Typography></Box></Box>
+            <TableContainer className="empresa-funds-table-wrap">
+              <Table className="empresa-funds-table empresa-funds-requests-table" aria-label="Solicitudes de liquidación">
+                <TableHead><TableRow><TableCell>Fecha</TableCell><TableCell>Importe</TableCell><TableCell>Destino</TableCell><TableCell>Estado</TableCell><TableCell>Referencia y detalle</TableCell>{currentSummary.canRegister ? <TableCell>Acciones</TableCell> : null}</TableRow></TableHead>
+                <TableBody>
+                  {requests.map((request) => <TableRow key={request._id}>
+                    <TableCell><Typography variant="body2">{formatDate(request.createdAt)}</Typography><Typography color="text.secondary" variant="caption">{request.domain === 'CURSO' ? 'Cursos' : 'Comercio'}</Typography></TableCell>
+                    <TableCell><Typography fontWeight={750} variant="body2">{formatMoney(request.amount, request.currency)}</Typography><Typography color="text.secondary" variant="caption">{request.paymentType === 'PARTIAL' ? 'Cobro parcial' : request.paymentType === 'TOTAL' ? 'Cobro total' : ''}</Typography></TableCell>
+                    <TableCell><Typography variant="body2">{getMethodLabel(request.paymentMethod, request.currency)}</Typography><Typography color="text.secondary" variant="caption">{request.destinationMask || 'Destino no disponible'}</Typography></TableCell>
+                    <TableCell><Chip size="small" variant="outlined" color={request.blockedBySaleReversal || request.status === 'UNKNOWN' ? 'warning' : request.status === 'PAID' ? 'success' : request.status === 'FAILED' || request.status === 'CANCELED' ? 'error' : 'primary'} label={request.blockedBySaleReversal ? 'Requiere revisión' : getStatusLabel(request.status)} /></TableCell>
+                    <TableCell className="empresa-funds-request-detail">{request.paymentReference ? <Typography variant="body2">{request.paymentReference}</Typography> : null}{request.resolutionReason ? <Typography color="text.secondary" variant="caption">{request.resolutionReason}</Typography> : null}{!request.paymentReference && !request.resolutionReason ? <Typography color="text.secondary" variant="body2">—</Typography> : null}</TableCell>
+                    {currentSummary.canRegister ? <TableCell>{['RESERVED', 'IN_PROCESS', 'UNKNOWN'].includes(request.status) ? <EmpresaFundsManual requests={[request]} onUpdated={() => setRevision((value) => value + 1)} onNotice={setNotice} /> : <Typography color="text.secondary" variant="body2">—</Typography>}</TableCell> : null}
+                  </TableRow>)}
+                  {!requests.length ? <TableRow><TableCell colSpan={currentSummary.canRegister ? 6 : 5}><Typography color="text.secondary" variant="body2">No hay solicitudes de liquidación registradas.</Typography></TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {(currentSummary.totalManualHistory || 0) > 25 ? <Box className="empresa-funds-pagination"><Button disabled={requestPage === 0} onClick={() => setRequestPage((page) => page - 1)}>Anterior</Button><Typography color="text.secondary" variant="body2">Página {requestPage + 1} · {currentSummary.totalManualHistory} solicitudes</Typography><Button disabled={(requestPage + 1) * 25 >= currentSummary.totalManualHistory} onClick={() => setRequestPage((page) => page + 1)}>Siguiente</Button></Box> : null}
+          </Paper>
         </>
       ) : null}
 
-      <Dialog aria-labelledby="empresa-funds-destination-title" fullWidth maxWidth="sm" onClose={() => !destinationWorking && setDestinationDialog(false)} open={destinationDialog}>
+      <Dialog PaperProps={{ sx: (theme) => ({ backgroundImage: 'none', bgcolor: 'background.paper', borderRadius: 3, '--line-soft': theme.palette.divider, '--muted': theme.palette.text.secondary, '--accent': theme.palette.primary.main, '--accent-soft': theme.palette.mode === 'dark' ? 'rgba(167,139,250,.14)' : 'rgba(117,73,223,.09)', '--surface-soft': theme.palette.mode === 'dark' ? '#201f29' : '#f4f3f8' }) }} fullWidth maxWidth="sm" open={Boolean(selectedLine)} onClose={() => setSelectedLine(null)} aria-labelledby="empresa-funds-sale-title">
+        <DialogTitle id="empresa-funds-sale-title">Detalle de la venta</DialogTitle>
+        <DialogContent>{selectedLine ? <Box className="empresa-funds-sale-detail">
+          <Box className="empresa-funds-sale-intro"><Box className="empresa-funds-sale-intro-icon">{selectedLine.domain === 'CURSO' ? <SchoolRoundedIcon /> : <StorefrontRoundedIcon />}</Box><Box><Typography className="empresa-funds-sale-kicker" variant="overline">{selectedLine.domain === 'CURSO' ? 'Curso' : 'Comercio'}</Typography><Typography variant="h6" fontWeight={800}>{selectedLine.label || 'Venta'}</Typography><Typography color="text.secondary" variant="body2">{formatDate(selectedLine.createdAt)}</Typography></Box></Box>
+          <Typography className="empresa-funds-sale-heading" fontWeight={750}><ReceiptLongRoundedIcon /> Datos de la venta</Typography>
+          <Box className="empresa-funds-sale-facts">
+            <Box><span>Concepto</span><strong>{ROLE_LABELS[selectedLine.role] || 'Ingreso'}</strong></Box>
+            <Box><span>Método de pago</span><strong>{SALE_METHOD_LABELS[selectedLine.method] || 'No disponible'}</strong></Box>
+            {selectedLine.storeTitle ? <Box><span>Tienda</span><strong>{selectedLine.storeTitle}</strong></Box> : null}
+            {selectedLine.role === 'STORE_OWNER' && selectedLine.quantity != null ? <Box><span>Cantidad</span><strong>{selectedLine.quantity}</strong></Box> : null}
+            {selectedLine.saleId ? <Box><span>Referencia de venta</span><strong>{selectedLine.saleId}</strong></Box> : null}
+            {selectedLine.sourceAmount != null && selectedLine.sourceCurrency ? <Box><span>Importe de origen</span><strong>{formatMoney(selectedLine.sourceAmount, selectedLine.sourceCurrency)}</strong></Box> : null}
+          </Box>
+          <Typography className="empresa-funds-sale-heading" fontWeight={750}><AccountBalanceWalletOutlinedIcon /> Estado de este ingreso</Typography>
+          <Box className="empresa-funds-sale-amounts"><Box><span><PaymentsRoundedIcon /> Ingreso</span><strong>{formatMoney(selectedLine.amount, selectedLine.currency)}</strong></Box><Box><span><CheckCircleOutlineRoundedIcon /> Cobrado</span><strong>{formatMoney(selectedLine.paid, selectedLine.currency)}</strong></Box><Box><span><ScheduleRoundedIcon /> Reservado</span><strong>{formatMoney(selectedLine.reserved, selectedLine.currency)}</strong></Box><Box className="empresa-funds-sale-available"><span><AccountBalanceWalletOutlinedIcon /> Disponible</span><strong>{formatMoney(selectedLine.pending, selectedLine.currency)}</strong></Box></Box>
+          {selectedLine.domain === 'CURSO' && selectedLine.grossAmountUsd != null ? <><Typography fontWeight={750}>Distribución del curso</Typography><Box className="empresa-funds-sale-facts"><Box><span>Importe total</span><strong>{formatMoney(selectedLine.grossAmountUsd, 'USD')}</strong></Box><Box><span>Profesor</span><strong>{formatMoney(selectedLine.professorAmountUsd, 'USD')}</strong></Box><Box><span>Administración</span><strong>{formatMoney(selectedLine.adminAmountUsd, 'USD')}</strong></Box><Box><span>Administración general</span><strong>{formatMoney(selectedLine.generalAmountUsd, 'USD')}</strong></Box></Box></> : null}
+          {selectedLine.role === 'STORE_OWNER' ? <Typography color="text.secondary" variant="body2">El ingreso corresponde al precio de los productos vendidos. No incluye el costo de entrega ni la comisión de VIDKAR.</Typography> : null}
+        </Box> : null}</DialogContent><DialogActions><Button onClick={() => setSelectedLine(null)}>Cerrar</Button></DialogActions>
+      </Dialog>
+
+      <Dialog PaperProps={{ sx: { backgroundImage: 'none', bgcolor: 'background.paper', borderRadius: 3 } }} fullWidth maxWidth="sm" open={Boolean(selectedPayment)} onClose={() => setSelectedPayment(null)} aria-labelledby="empresa-funds-payment-detail-title">
+        <DialogTitle id="empresa-funds-payment-detail-title">Detalle del cobro</DialogTitle><DialogContent><Box className="empresa-funds-form">{selectedPayment ? <><Typography variant="h5" fontWeight={800}>{formatMoney(selectedPayment.amount, selectedPayment.currency)}</Typography><Typography color="text.secondary" variant="body2">{getMethodLabel(selectedPayment.paymentMethod, selectedPayment.currency)} · {formatDate(selectedPayment.createdAt)}</Typography>{selectedPayment.paymentReference ? <Typography variant="body2">Referencia: {selectedPayment.paymentReference}</Typography> : null}<Typography fontWeight={700}>Ingresos incluidos</Typography>{(selectedPayment.allocations || []).map((line, index) => <Box className="empresa-funds-allocation" key={line.key || index}><Typography variant="body2">{line.label || 'Ingreso por venta'}</Typography><Typography fontWeight={700} variant="body2">{formatMoney(line.amount, selectedPayment.currency)}</Typography></Box>)}</> : null}</Box></DialogContent><DialogActions><Button onClick={() => setSelectedPayment(null)}>Cerrar</Button></DialogActions>
+      </Dialog>
+
+      <Dialog PaperProps={{ sx: { backgroundImage: 'none', bgcolor: 'background.paper', borderRadius: 3 } }} aria-labelledby="empresa-funds-payment-title" fullWidth maxWidth="sm" onClose={closePayment} open={Boolean(paymentForm)}>
+        <DialogTitle id="empresa-funds-payment-title">{paymentForm?.currency === 'CUP' ? 'Preparar remesa' : 'Solicitar cobro'} · {paymentForm?.currency}</DialogTitle>
+        <DialogContent><Box className="empresa-funds-form">
+          <Alert severity="info">Al confirmar, reservaremos el importe para tu cobro. No se enviará dinero todavía. {paymentForm?.method === 'REMESA' ? 'La liquidación se registra al confirmar la entrega real de la remesa.' : 'Administración debe ejecutar y conciliar la transferencia.'}</Alert>
+          <Typography>Disponible para reservar: {paymentForm ? formatMoney(paymentForm.available, paymentForm.currency) : ''}</Typography>
+          <Typography color="text.secondary" variant="body2">Destino confirmado: {paymentForm ? getMethodLabel(paymentForm.method, paymentForm.currency) : ''}.</Typography>
+          {paymentError ? <Alert severity="error">{paymentError} Si no sabes si se creó la reserva, reintenta con la misma solicitud.</Alert> : null}
+          <TextField disabled={paymentSubmitted} label="Tipo de pago" select value={paymentForm?.paymentType || 'TOTAL'} onChange={(event) => setPaymentForm((current) => ({ ...current, paymentType: event.target.value }))}><MenuItem value="TOTAL">Total disponible</MenuItem><MenuItem value="PARTIAL">Parcial</MenuItem></TextField>
+          {paymentForm?.paymentType === 'PARTIAL' ? <TextField disabled={paymentSubmitted} label={`Importe en ${paymentForm.currency}`} value={paymentForm.amount} onChange={(event) => setPaymentForm((current) => ({ ...current, amount: event.target.value }))} inputProps={{ inputMode: 'decimal' }} /> : null}
+        </Box></DialogContent>
+        <DialogActions><Button disabled={paymentWorking} onClick={closePayment}>Cerrar</Button><Button disabled={paymentWorking || paymentInvalid} onClick={preparePayment} variant="contained">{paymentWorking ? 'Reservando…' : paymentSubmitted ? 'Reintentar misma solicitud' : 'Reservar saldo'}</Button></DialogActions>
+      </Dialog>
+
+      <Dialog PaperProps={{ sx: { backgroundImage: 'none', bgcolor: 'background.paper', borderRadius: 3 } }} aria-labelledby="empresa-funds-destination-title" fullWidth maxWidth="sm" onClose={() => !destinationWorking && setDestinationDialog(false)} open={destinationDialog}>
         <DialogTitle id="empresa-funds-destination-title">Configurar destino · {destinationForm.currency}</DialogTitle>
         <DialogContent>
           <Box className="empresa-funds-form">
             <Alert severity="warning">
-              Los datos se guardan en la base de VIDKAR sin cifrado adicional de aplicación. El resumen muestra solo una máscara y los operadores autorizados consultan los datos al procesar el pago. No ingreses contraseñas, PIN ni códigos de seguridad.
+              Comprueba los datos de tu cuenta antes de guardarlos. No ingreses contraseñas, PIN ni códigos de seguridad.
             </Alert>
             <TextField disabled label="Moneda del saldo" value={destinationForm.currency} />
             <TextField disabled={destinationForm.currency === 'CUP'} label="Método de cobro" onChange={updateDestinationField('method')} select value={destinationForm.method}>

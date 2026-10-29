@@ -727,3 +727,74 @@
   .empresa-pro-dialog-navigation > .MuiButton-root,
   .empresa-pro-dialog-actions-primary > .MuiButton-root { flex: 0 1 auto; }
 }
+
+/* Fondos y cobros */
+.empresa-funds-card { overflow: hidden; box-shadow: var(--shadow-soft); }
+.empresa-funds-card .MuiCardContent-root { gap: 14px; padding: 22px; }
+.empresa-funds-card-heading > .MuiSvgIcon-root { box-sizing: content-box; padding: 10px; border-radius: 13px; background: var(--accent-soft); }
+.empresa-funds-amount { color: var(--accent); letter-spacing: -.035em !important; }
+.empresa-funds-metrics { padding: 12px 0; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+.empresa-funds-metrics > div { padding: 8px; background: transparent; }
+.empresa-funds-destination { min-width: 0; padding: 20px; box-shadow: var(--shadow-soft); }
+.empresa-funds-destination-heading { width: 100%; }
+.empresa-funds-section { display: flex; flex-direction: column; gap: 14px; }
+.empresa-funds-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.empresa-funds-filters { display: flex; flex-wrap: wrap; gap: 10px; }
+.empresa-funds-filters .MuiTextField-root { min-width: 135px; }
+.empresa-funds-line { align-items: center; flex-wrap: wrap; padding: 17px 20px; }
+.empresa-funds-line > div:first-child { flex: 1 1 180px; min-width: 0; }
+.empresa-funds-line-values { display: grid; flex: 2 1 420px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.empresa-funds-line-values > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.empresa-funds-line-values span { color: var(--muted); font-size: .72rem; }
+.empresa-funds-line-values strong { overflow-wrap: anywhere; font-size: .82rem; }
+.empresa-funds-pagination { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.empresa-funds-admin-actions { margin-top: 12px; }
+.empresa-funds-allocation { display: flex; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 12px; background: var(--surface-soft); }
+@media (max-width: 600px) {
+  .empresa-funds-line-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .empresa-funds-history-row { flex-wrap: wrap; }
+}
+.empresa-funds-table-wrap { overflow-x: auto; border: 1px solid var(--line-soft); border-radius: 18px !important; background: var(--surface-glass) !important; }
+.empresa-funds-table { min-width: 850px; }
+.empresa-funds-table .MuiTableCell-root { padding: 16px; border-color: var(--line-soft); white-space: nowrap; }
+.empresa-funds-table .MuiTableCell-root:first-child { min-width: 210px; white-space: normal; }
+.empresa-funds-table .MuiTableCell-head { padding-block: 13px; color: var(--muted); background: var(--surface-soft); font-size: .71rem; font-weight: 750; letter-spacing: .04em; }
+.empresa-funds-table .MuiTableRow-root:last-child .MuiTableCell-body { border-bottom: 0; }
+.empresa-funds-table .MuiTableRow-root:hover .MuiTableCell-body { background: var(--accent-soft); }
+.empresa-funds-table-available { color: var(--accent) !important; font-weight: 750 !important; }
+.empresa-funds-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.empresa-funds-sale-detail { display: flex; flex-direction: column; gap: 16px; padding-top: 8px; }
+.empresa-funds-sale-intro { padding: 18px; border: 1px solid var(--line-soft); border-radius: 15px; background: var(--accent-soft); }
+.empresa-funds-sale-facts, .empresa-funds-sale-amounts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.empresa-funds-sale-facts > div, .empresa-funds-sale-amounts > div { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--line-soft); border-radius: 12px; }
+.empresa-funds-sale-amounts > div { background: var(--surface-soft); }
+.empresa-funds-sale-facts span, .empresa-funds-sale-amounts span { color: var(--muted); font-size: .72rem; }
+.empresa-funds-sale-facts strong, .empresa-funds-sale-amounts strong { overflow-wrap: anywhere; font-size: .875rem; }
+.empresa-funds-sale-intro { display: flex; align-items: center; gap: 15px; padding: 20px; }
+.empresa-funds-sale-intro-icon { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border: 1px solid var(--line-soft); border-radius: 15px; color: var(--accent); background: var(--surface-soft); }
+.empresa-funds-sale-kicker { color: var(--accent); font-size: .68rem !important; font-weight: 800 !important; letter-spacing: .09em !important; line-height: 1.3 !important; }
+.empresa-funds-sale-heading { display: flex; align-items: center; gap: 8px; margin-top: 3px !important; }
+.empresa-funds-sale-heading svg { color: var(--accent); font-size: 20px; }
+.empresa-funds-sale-facts > div, .empresa-funds-sale-amounts > div { gap: 7px; padding: 14px 16px; background: var(--surface-soft); }
+.empresa-funds-sale-amounts span { display: flex; align-items: center; gap: 7px; }
+.empresa-funds-sale-amounts span svg { color: var(--accent); font-size: 17px; }
+.empresa-funds-sale-amounts strong { font-size: 1rem; }
+.empresa-funds-sale-amounts > .empresa-funds-sale-available { border-color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 380px) { .empresa-funds-sale-facts, .empresa-funds-sale-amounts { grid-template-columns: minmax(0, 1fr); } }
+.empresa-funds-requests-table { min-width: 900px; }
+.empresa-funds-requests-table .MuiTableCell-root { vertical-align: top; }
+.empresa-funds-requests-table .empresa-funds-request-detail { min-width: 180px; max-width: 300px; white-space: normal; overflow-wrap: anywhere; }
+.empresa-funds-requests-table .empresa-funds-admin-actions { margin-top: 0; min-width: 170px; }
+.empresa-funds-requests-table .MuiChip-root { max-width: 220px; }
+/* Tabla de fondos: mismo lenguaje visual que el historial de compras */
+.empresa-funds-table-card { overflow: hidden; border: 1px solid var(--line-soft); border-radius: 26px !important; background: var(--mui-palette-background-paper, #fff) !important; box-shadow: var(--shadow-soft); }
+.empresa-funds-table-header { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: clamp(18px, 3vw, 26px); border-bottom: 1px solid var(--line-soft); background: linear-gradient(180deg, rgba(117,73,223,.045), transparent); }
+.empresa-funds-table-title { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
+.empresa-funds-table-title h5 { font-family: 'Manrope', sans-serif; font-weight: 800; }
+.empresa-funds-table-count { border: 1px solid rgba(117,73,223,.2) !important; color: var(--accent) !important; background: var(--accent-soft) !important; font-weight: 800 !important; }
+.empresa-funds-table-card .empresa-funds-table-wrap { border: 0; border-radius: 0 !important; background: transparent !important; }
+.empresa-funds-table-card .empresa-funds-table .MuiTableCell-head { padding: 13px 18px; font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.empresa-funds-table-card .empresa-funds-table .MuiTableCell-body { padding: 15px 18px; vertical-align: middle; }
+.empresa-funds-table-card .empresa-funds-table .MuiTableRow-root:hover .MuiTableCell-body { background: rgba(117,73,223,.04); }
+.empresa-funds-table-card .empresa-funds-pagination { padding: 10px 18px; border-top: 1px solid var(--line-soft); }
+@media (max-width: 760px) { .empresa-funds-table-header { align-items: stretch; flex-direction: column; padding: 16px; } }

@@ -313,6 +313,7 @@ export const buildCatalogSubscriptionQuery = ({
 
   const normalizedStore = normalizeId(selectedStore);
   const selector = {
+    'mercadoLibre.status': { $ne: 'paused' },
     idTienda:
       normalizedStore && normalizedStore !== 'all' && allowedStores.includes(normalizedStore)
         ? normalizedStore

@@ -24,6 +24,7 @@ const STORE_FIELDS = {
 };
 
 export const PRODUCT_FIELDS = {
+  'mercadoLibre.status': 1,
   _id: 1,
   idTienda: 1,
   name: 1,
@@ -88,7 +89,7 @@ export function useStorefront({ subscribeCategories = true } = {}) {
       ? getVisibleCatalogProducts(
           selectCompanyProducts(
             ProductosComercioCollection.find(
-              { idTienda: { $in: storeIds } },
+              { idTienda: { $in: storeIds }, 'mercadoLibre.status': { $ne: 'paused' } },
               { fields: PRODUCT_FIELDS, sort: { name: 1 } },
             ).fetch(),
             storeIds,
@@ -202,6 +203,7 @@ export function useCategorySelection({ enabled, ownerId, rootId, selectionKey, c
     const selection = SeleccionesCatalogoCollection.findOne(selectionKey);
     const productIds = selection?.productIds || [];
     const products = ProductosComercioCollection.find({
+      'mercadoLibre.status': { $ne: 'paused' },
       _id: { $in: productIds },
       idTienda: { $in: storeKey.split('|') },
     }, { fields: PRODUCT_FIELDS }).fetch();

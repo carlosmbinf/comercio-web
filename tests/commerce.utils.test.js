@@ -219,7 +219,7 @@ test('construye consultas de catálogo paginadas y acotadas bajo demanda', () =>
   assert.equal(initial.enabled, true);
   assert.equal(initial.limit, INITIAL_CATALOG_LIMIT);
   assert.equal(initial.options.limit, INITIAL_CATALOG_LIMIT + 1);
-  assert.deepEqual(initial.selector, { idTienda: { $in: ['store-a', 'store-b'] } });
+  assert.deepEqual(initial.selector, { idTienda: { $in: ['store-a', 'store-b'] }, 'mercadoLibre.status': { $ne: 'paused' } });
 
   const scoped = buildCatalogSubscriptionQuery({
     availability: 'available',
