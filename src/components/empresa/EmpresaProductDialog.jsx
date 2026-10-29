@@ -420,7 +420,7 @@ export default function EmpresaProductDialog({
     if (name.length < 3 || name.length > 50) return setError('El nombre debe tener entre 3 y 50 caracteres.');
     if (description.length < 10 || description.length > 200) return setError('La descripción debe tener entre 10 y 200 caracteres.');
     if (!Number.isFinite(price) || price <= 0 || price > 999999) return setError('Indica un precio válido mayor que cero.');
-    if (!form.madeToOrder && (!Number.isFinite(count) || count < 0 || count > 999999)) return setError('Indica una cantidad disponible válida.');
+    if (!form.madeToOrder && (String(form.count).trim() === '' || !Number.isInteger(count) || count < 0 || count > 999999)) return setError('Indica una cantidad entera disponible entre 0 y 999999.');
     if (!SUPPORTED_CURRENCIES.includes(form.currency)) return setError('Selecciona una moneda válida.');
     if (comment.length > 500) return setError('El comentario no puede exceder 500 caracteres.');
     if (mercadoLibreForm.publish) {

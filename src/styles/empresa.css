@@ -123,8 +123,9 @@
 .empresa-store-icon { width: 42px; height: 42px; border-radius: 14px; }
 .empresa-store-description { display: -webkit-box; overflow: hidden; min-height: 42px; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .empresa-product-list { overflow: hidden; border: 1px solid var(--line-soft); border-radius: 22px !important; background: var(--mui-palette-background-paper,#fff) !important; box-shadow: var(--shadow-soft); }
-.empresa-product-list-header, .empresa-product-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(155px,.34fr) minmax(170px,.4fr); gap: 16px; }
+.empresa-product-list-header, .empresa-product-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(140px,.3fr) minmax(160px,.35fr); gap: 16px; }
 .empresa-product-list-header { padding: 12px 18px; border-bottom: 1px solid var(--line-soft); color: var(--muted); background: var(--surface-soft); font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.empresa-product-list-header > :nth-child(3) { text-align: right; }
 .empresa-product-list-items { margin: 0; padding: 0; list-style: none; }
 .empresa-product-row { align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--line-soft); transition: background-color 150ms ease; }
 .empresa-product-row:last-child { border-bottom: 0; }
@@ -210,7 +211,7 @@
   .empresa-product-row { grid-template-columns: minmax(0,1fr) max-content; gap: 10px 14px; padding: 15px 16px; }
   .empresa-product-row-main, .empresa-product-row-marketplace, .empresa-product-row-warning { grid-column: 1 / -1; }
   .empresa-product-row-meta { grid-column: 1; align-items: center; flex-direction: row; flex-wrap: wrap; gap: 8px 12px; }
-  .empresa-product-row-actions { grid-column: 2; }
+  .empresa-product-row-actions { grid-column: 2; grid-row: 2; }
   .empresa-order-meta { grid-template-columns: 1fr 1fr; }
   .empresa-order-meta > div:last-child { grid-column: 1 / -1; }
   .empresa-order-heading { align-items: flex-start; flex-direction: column; }
@@ -237,6 +238,7 @@
   .empresa-product-gallery { height: 220px; }
   .empresa-product-row { grid-template-columns: minmax(0,1fr); }
   .empresa-product-row-main, .empresa-product-row-meta, .empresa-product-row-actions, .empresa-product-row-marketplace, .empresa-product-row-warning { grid-column: 1; }
+  .empresa-product-row-actions { grid-row: auto; }
   .empresa-product-row-actions { justify-content: flex-start; }
   .empresa-category-summary { gap: 12px 24px; }
   .empresa-category-actions-cell { width: 118px; white-space: normal; }

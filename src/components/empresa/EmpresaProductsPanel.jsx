@@ -5,7 +5,8 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import StopCircleRoundedIcon from '@mui/icons-material/StopCircleRounded';
-import SyncRoundedIcon from '@mui/icons-material/SyncRounded';
+import PauseCircleOutlineRoundedIcon from '@mui/icons-material/PauseCircleOutlineRounded';
+import PlayCircleOutlineRoundedIcon from '@mui/icons-material/PlayCircleOutlineRounded';
 import { Meteor, callMeteor } from '../../meteor/client';
 import { CategoriasComercioCollection, ConfigCollection, ProductosComercioCollection, TiendasComercioCollection } from '../../meteor/collections';
 import { formatMoney } from '../../domain/commerce';
@@ -223,34 +224,19 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
       : `${product ? 'Producto actualizado.' : 'Producto creado.'}${mercadoLibreMessage}`);
   };
 
-  const syncMercadoLibreProduct = async (product) => {
-    if (!mercadoLibreEnabled || !product?._id || syncingProductId || closingProductId || deletingProductId) return;
+  const changeMercadoLibreStatus = async (product) => {
+    if (syncingProductId || closingProductId || deletingProductId) return;
+    const status = product.mercadoLibre?.status === 'paused' ? 'active' : 'paused';
+    if (!window.confirm(`¿${status === 'paused' ? 'Pausar' : 'Activar'} la publicación de “${product.name || 'este producto'}”? El cambio afecta todas sus publicaciones y variantes vinculadas.`)) return;
     setPanelError('');
     setSyncingProductId(product._id);
     try {
-      const result = await callMeteor('comercio.mercadoLibre.sincronizarProducto', product._id);
-      notify?.(result?.queued ? 'La sincronización del producto quedó en cola.' : 'No se realizaron cambios en Mercado Libre.');
-    } catch (syncError) {
-      setPanelError(syncError?.reason || syncError?.message || 'No se pudo sincronizar el producto.');
-    } finally {
-      setSyncingProductId('');
-    }
-  };
-
-  const syncMercadoLibrePictures = async (product) => {
-    if (!mercadoLibreEnabled || !product?._id || syncingProductId || closingProductId || deletingProductId) return;
-    setPanelError('');
-    setSyncingProductId(product._id);
-    try {
-      const result = await callMeteor('comercio.mercadoLibre.sincronizarFotos', product._id);
-      notify?.(result?.picturesSynced
-        ? 'Mercado Libre confirmó las fotos de la publicación.'
-        : 'Se enviaron las fotos; Mercado Libre todavía las está procesando. Vuelve a comprobarlas más tarde.');
-    } catch (syncError) {
-      setPanelError(syncError?.reason || syncError?.message || 'No se pudieron actualizar las fotos.');
-    } finally {
-      setSyncingProductId('');
-    }
+      const result = await callMeteor('comercio.mercadoLibre.cambiarEstadoProducto', product._id, status);
+      if (result?.success !== true) throw new Error('Mercado Libre no confirmó el cambio.');
+      notify?.(status === 'paused' ? 'Publicación pausada en Mercado Libre y la tienda.' : 'Publicación activada en Mercado Libre y la tienda.');
+    } catch (error) {
+      setPanelError(error?.reason || error?.message || 'No se pudo cambiar el estado de la publicación.');
+    } finally { setSyncingProductId(''); }
   };
 
   const closeMercadoLibreProduct = async (product) => {
@@ -281,8 +267,9 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
     const hasLinkedListing = hasMercadoLibreListing(mercadoLibreMetadata);
     const isVariation = mercadoLibreMetadata.variationId != null;
     const listingIsClosed = String(mercadoLibreMetadata.status || '').toLowerCase() === 'closed';
+    const store = data.stores.find((item) => String(item._id) === String(product.idTienda));
     const confirmation = hasLinkedListing
-      ? `¿Eliminar “${product.name || 'este producto'}” de ${storefront.stores?.[0]?.title || storefront.stores?.[0]?.name || 'tu tienda'}? ${listingIsClosed
+      ? `¿Eliminar “${product.name || 'este producto'}” de ${store?.title || store?.name || 'tu tienda'}? ${listingIsClosed
         ? 'La publicación figura cerrada. Si la cuenta sigue vinculada, se intentará retirarla; si ya se desconectó, solo se eliminará el producto local.'
         : `Se retirará primero ${isVariation ? 'la variante' : 'la publicación'} vinculada de Mercado Libre. Si Mercado Libre no confirma la baja, el producto local no se eliminará.`}`
       : `¿Eliminar “${product.name || 'este producto'}” y su imagen?`;
@@ -379,7 +366,6 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
                   <Typography className="empresa-product-row-price" fontWeight={800} variant="subtitle1">{formatMoney(product.precio, product.monedaPrecio || 'USD')}</Typography>
                   <Chip label={product.productoDeElaboracion ? 'Por encargo' : stock ? `${stock} disponibles` : 'Agotado'} size="small" color={product.productoDeElaboracion ? 'secondary' : stock ? 'success' : 'default'} />
                 </Box>
-
                 <Box className="empresa-product-row-actions">
                   <Tooltip arrow describeChild title="Edita los datos, fotos e inventario local. Los cambios compatibles de Mercado Libre se sincronizan según el estado de la publicación.">
                       <span>
@@ -412,31 +398,10 @@ export default function EmpresaProductsPanel({ notify, storefront, user }) {
                         label={`Mercado Libre · ${mercadoLibreStatus.label}`}
                         size="small"
                       />
-                      <Tooltip arrow describeChild title="Envía a Mercado Libre los cambios locales compatibles de stock, precio y descripción; respeta automatizaciones de precio.">
-                        <span>
-                          <Button
-                            disabled={syncingProductId === product._id || Boolean(syncingProductId || closingProductId || deletingProductId) || mercadoLibreClosed || !product.mercadoLibre.itemId}
-                            onClick={() => syncMercadoLibreProduct(product)}
-                            size="small"
-                            startIcon={syncingProductId === product._id ? <CircularProgress color="inherit" size={14} /> : <SyncRoundedIcon />}
-                          >
-                            Sincronizar
-                          </Button>
-                        </span>
-                      </Tooltip>
-                      {!mercadoLibreClosed && product.mercadoLibre.itemId ? (
-                        <Tooltip arrow describeChild title="Envía las fotos actuales del catálogo al anuncio. Mercado Libre puede tardar en procesarlas; vuelve a sincronizar si alguna queda pendiente.">
-                          <span>
-                            <Button
-                              disabled={Boolean(syncingProductId || closingProductId || deletingProductId)}
-                              onClick={() => syncMercadoLibrePictures(product)}
-                              size="small"
-                              startIcon={syncingProductId === product._id ? <CircularProgress color="inherit" size={14} /> : <SyncRoundedIcon />}
-                            >
-                              Actualizar fotos
-                            </Button>
-                          </span>
-                        </Tooltip>
+                      {['active', 'paused'].includes(String(product.mercadoLibre.status || '').toLowerCase()) && product.mercadoLibre.itemId ? (
+                        <Button disabled={Boolean(syncingProductId || closingProductId || deletingProductId)} onClick={() => changeMercadoLibreStatus(product)} size="small" startIcon={syncingProductId === product._id ? <CircularProgress color="inherit" size={14} /> : product.mercadoLibre.status === 'paused' ? <PlayCircleOutlineRoundedIcon /> : <PauseCircleOutlineRoundedIcon />}>
+                          {product.mercadoLibre.status === 'paused' ? 'Activar' : 'Pausar'} publicación
+                        </Button>
                       ) : null}
                       {!mercadoLibreClosed && product.mercadoLibre.itemId ? (
                         <Tooltip arrow describeChild title={product.mercadoLibre.variationId != null
