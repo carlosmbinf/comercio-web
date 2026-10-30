@@ -103,7 +103,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
         <Stack spacing={2.5} component="fieldset" disabled={busy || Boolean(uploading)} className="appearance-controls">
           <Card className="appearance-section" elevation={0}>
             <Box className="appearance-section-title"><PaletteRoundedIcon color="primary" /><Typography variant="h6">01 · Tu paleta</Typography></Box>
-            <Typography color="text.secondary" variant="body2">Empieza con una combinación o elige tus propios colores.</Typography>
+            <Typography color="text.secondary" variant="body2">El color principal también viste la cabecera; el secundario da identidad al pie de página. Ambos mantienen el contraste en los modos claro y oscuro.</Typography>
             <Box className="appearance-presets">
               {APPEARANCE_PRESETS.map((preset) => {
                 const selected = ['primary', 'secondary', 'background'].every((key) => draft[key].toLowerCase() === preset[key]);
@@ -114,7 +114,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
               })}
             </Box>
             <Box className="appearance-colors">
-              {[['primary', 'Principal'], ['secondary', 'Secundario'], ['background', 'Fondo']].map(([key, label]) => (
+              {[['primary', 'Principal · cabecera y navegación'], ['secondary', 'Secundario · pie de página'], ['background', 'Fondo general']].map(([key, label]) => (
                 <Box className="appearance-color" key={key}>
                   <input aria-label={`Elegir color ${label.toLowerCase()}`} disabled={busy || Boolean(uploading)} onChange={(event) => update(key, event.target.value)} type="color" value={/^#[\da-f]{6}$/i.test(draft[key]) ? draft[key] : DEFAULT_APPEARANCE[key]} />
                   <TextField error={!/^#[\da-f]{6}$/i.test(draft[key])} fullWidth label={label} onChange={(event) => update(key, event.target.value)} size="small" value={draft[key]} slotProps={{ htmlInput: { maxLength: 7, spellCheck: false } }} />

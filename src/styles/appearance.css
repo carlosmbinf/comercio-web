@@ -122,7 +122,7 @@ body .checkout-dialog-paper .checkout-stepper .MuiStepIcon-root.Mui-completed {
 .appearance-preview-column { position: sticky; top: 108px; min-width: 0; }
 .appearance-preview-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 .appearance-preview { border: 1px solid var(--line-soft); border-radius: 22px; overflow: hidden; box-shadow: var(--shadow-soft); }
-.appearance-preview-header { display: flex; align-items: center; gap: 10px; padding: 16px; background: var(--mui-palette-background-paper); border-bottom: 1px solid var(--line-soft); }
+.appearance-preview-header { display: flex; align-items: center; gap: 10px; padding: 16px; color: var(--brand-header-text); background: var(--brand-header); border-bottom: 1px solid color-mix(in srgb, var(--brand-primary) 22%, var(--line-soft)); }
 .appearance-preview-header > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .appearance-preview-header > span:last-child { margin-left: auto; border-radius: 20px; background: var(--accent-soft); color: var(--accent); padding: 7px 12px; font-size: 11px; }
 .appearance-preview-hero { position: relative; margin: 18px; padding: 32px 24px; min-height: 220px; display: flex; align-items: end; overflow: hidden; border-radius: 18px; color: #fff; }
@@ -133,7 +133,7 @@ body .checkout-dialog-paper .checkout-stepper .MuiStepIcon-root.Mui-completed {
 .appearance-preview-product strong { font-size: 11px; }
 .appearance-preview-product > span { color: var(--muted); font-size: 9px; }
 .appearance-preview-product .MuiButton-root { padding: 4px; min-width: 0; min-height: 30px; font-size: 10px; pointer-events: none; }
-.appearance-preview-footer { padding: 14px; border-top: 1px solid var(--line-soft); text-align: center; font-size: 10px; color: var(--muted); }
+.appearance-preview-footer { padding: 14px; border-top: 1px solid color-mix(in srgb, var(--brand-secondary) 22%, var(--line-soft)); text-align: center; font-size: 10px; color: var(--brand-footer-text); background: var(--brand-footer); }
 .appearance-preview-login { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 18px; min-height: 390px; }
 .appearance-preview-login-story { position: relative; display: flex; align-items: end; overflow: hidden; border-radius: 16px; padding: 20px; color: #fff; background: var(--brand-hero); }
 .appearance-preview-login-story > .MuiTypography-root { position: relative; z-index: 2; font-size: 20px; overflow-wrap: anywhere; }

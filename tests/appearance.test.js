@@ -50,3 +50,15 @@ test('la identidad de una empresa no modifica defaults ni configuraciones de otr
   assert.equal(DEFAULT_APPEARANCE.headline, '');
   assert.notEqual(appearanceTokens(a).primary, appearanceTokens(b).primary);
 });
+
+test('la paleta personaliza cabecera y pie de página sin perder contraste', () => {
+  const first = appearanceTokens({ primary: '#24634b', secondary: '#ad632c', background: '#f0f4ef' });
+  const other = appearanceTokens({ primary: '#175b9a', secondary: '#c45b39', background: '#eff5fa' });
+  assert.notEqual(first.variables['--brand-header'], other.variables['--brand-header']);
+  assert.notEqual(first.variables['--brand-footer'], other.variables['--brand-footer']);
+  for (const mode of ['light', 'dark']) {
+    const tokens = appearanceTokens({ primary: '#24634b', secondary: '#ad632c', background: '#f0f4ef' }, mode);
+    assert.ok(contrastRatio(tokens.variables['--brand-header-text'], tokens.variables['--brand-header']) >= 4.5);
+    assert.ok(contrastRatio(tokens.variables['--brand-footer-text'], tokens.variables['--brand-footer']) >= 4.5);
+  }
+});

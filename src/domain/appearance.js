@@ -61,6 +61,8 @@ export function appearanceTokens(settings, mode = 'light') {
   const text = dark ? '#f7f5fc' : '#201d27';
   const muted = dark ? '#bcb8c6' : '#6f6b78';
   const soft = mixColor(paper, primary, dark ? 0.12 : 0.055);
+  const header = mixColor(paper, primary, dark ? 0.2 : 0.1);
+  const footer = mixColor(paper, secondary, dark ? 0.17 : 0.08);
   const hero = mixColor(appearance.primary, '#080a12', 0.75);
   const heroEnd = readableColor(mixColor(appearance.primary, '#080a12', 0.4), '#ffffff', 9);
   return {
@@ -74,6 +76,11 @@ export function appearanceTokens(settings, mode = 'light') {
       '--brand-on-secondary': onSecondary,
       '--brand-hero': hero,
       '--brand-hero-end': heroEnd,
+      '--brand-header': header,
+      '--brand-footer': footer,
+      '--brand-header-text': text,
+      '--brand-footer-text': text,
+      '--brand-footer-muted': muted,
       '--brand-highlight': mixColor(appearance.secondary, '#ffffff', 0.7),
       '--mui-palette-background-default': background,
       '--mui-palette-background-paper': paper,
