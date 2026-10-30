@@ -38,6 +38,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
   const [uploading, setUploading] = React.useState('');
   const [error, setError] = React.useState('');
   const [restoreOpen, setRestoreOpen] = React.useState(false);
+  const imageInputs = React.useRef({});
   const dirty = JSON.stringify(draft) !== baseline;
   const companyName = getCommerceDisplayName(storefront.stores);
   const previewStorefront = useStorefront();
@@ -152,10 +153,10 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
                   <Typography fontWeight={700} variant="body2">{title}</Typography>
                   <Typography color="text.secondary" variant="caption">{hint}</Typography>
                   <Box className="appearance-image-actions">
-                    <Button component="label" disabled={busy || Boolean(uploading)} size="small" startIcon={uploading === key ? <CircularProgress size={14} /> : <AddPhotoAlternateOutlinedIcon />}>
+                    <Button type="button" disabled={busy || Boolean(uploading)} onClick={() => imageInputs.current[key]?.click()} size="small" startIcon={uploading === key ? <CircularProgress size={14} /> : <AddPhotoAlternateOutlinedIcon />}>
                       {uploading === key ? 'Preparando…' : draft[key] ? 'Cambiar imagen' : 'Subir imagen'}
-                      <input accept="image/jpeg,image/png,image/webp" aria-label={`Subir ${title.toLowerCase()}`} disabled={busy || Boolean(uploading)} hidden onChange={(event) => upload(event, key)} type="file" />
                     </Button>
+                    <input ref={(node) => { imageInputs.current[key] = node; }} accept="image/jpeg,image/png,image/webp" aria-label={`Subir ${title.toLowerCase()}`} disabled={busy || Boolean(uploading)} hidden onChange={(event) => upload(event, key)} type="file" />
                     {draft[key] ? <Button color="inherit" disabled={busy || Boolean(uploading)} onClick={() => update(key, '')} size="small">Quitar</Button> : null}
                   </Box>
                 </Box>

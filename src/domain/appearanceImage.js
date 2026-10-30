@@ -5,8 +5,8 @@ export async function prepareAppearanceImage(file, slot) {
   }
   let bitmap;
   try {
-    // El original puede tener cualquier peso o resolución; solo se transmite una
-    // versión WebP reducida. El límite práctico depende del decodificador del navegador.
+    // Solo se transmite una versión reducida. El formato final se normaliza en
+    // el servidor; algunos navegadores devuelven PNG cuando se solicita WebP.
     bitmap = await createImageBitmap(file);
     const maxSize = slot === 'logo' ? 400 : 1600;
     const canvas = document.createElement('canvas');
@@ -14,17 +14,31 @@ export async function prepareAppearanceImage(file, slot) {
     if (!context) throw new Error('No se pudo preparar la imagen en este navegador.');
 
     let edge = Math.min(maxSize, Math.max(bitmap.width, bitmap.height));
-    while (edge >= 96) {
+    const minEdge = Math.min(96, edge);
+    while (true) {
       const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height));
       canvas.width = Math.max(1, Math.round(bitmap.width * scale));
       canvas.height = Math.max(1, Math.round(bitmap.height * scale));
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      for (const quality of [0.86, 0.76, 0.66, 0.56, 0.46, 0.36, 0.28]) {
-        const data = canvas.toDataURL('image/webp', quality);
-        if (data.startsWith('data:image/webp;base64,') && data.length <= 330000) return data;
+      for (const format of ['image/webp', 'image/jpeg', 'image/png']) {
+        if (format === 'image/jpeg') {
+          const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+          let transparent = false;
+          for (let index = 3; index < pixels.length; index += 4) {
+            if (pixels[index] < 255) { transparent = true; break; }
+          }
+          if (transparent) continue;
+        }
+        for (const quality of [0.86, 0.76, 0.66, 0.56, 0.46, 0.36, 0.28]) {
+          const data = canvas.toDataURL(format, quality);
+          if (/^data:image\/(webp|jpeg|png);base64,/.test(data) && data.length <= 330000) return data;
+          // PNG ignora la calidad: repetirla no reduce el peso.
+          if (data.startsWith('data:image/png;')) break;
+        }
       }
-      edge = Math.floor(edge * 0.8);
+      if (edge === minEdge) break;
+      edge = Math.max(minEdge, Math.floor(edge * 0.8));
     }
     throw new Error('No se pudo optimizar esta imagen. Prueba con otro formato JPG, PNG o WebP.');
   } finally {
