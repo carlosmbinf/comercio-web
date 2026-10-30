@@ -5,15 +5,20 @@ import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternate
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import { getCommerceDisplayName } from '../../config';
 import { APPEARANCE_PRESETS, DEFAULT_APPEARANCE, appearanceTokens, normalizeAppearance } from '../../domain/appearance';
 import { prepareAppearanceImage } from '../../domain/appearanceImage';
 import { ensureEmpresaMethodSuccess } from '../../domain/empresa';
 import { callMeteor } from '../../meteor/client';
 import { buildTheme } from '../../theme';
+import { useCatalogProducts, useStorefront } from '../../hooks/useStorefront';
 import BrandImage, { BrandLogo } from '../BrandImage';
 import { useStoreBranding } from '../StoreBranding';
 import OrdersHero from '../OrdersHero';
+import ProductCard from '../ProductCard';
 
 const IMAGE_SLOTS = [
   { key: 'logo', title: 'Logo de la tienda', hint: 'Formato cuadrado · recomendado 400 × 400 px. Aparece en el menú y el login.' },
@@ -29,12 +34,21 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
   const [initialized, setInitialized] = React.useState(branding.ready);
   const [previewMode, setPreviewMode] = React.useState('light');
   const [previewPage, setPreviewPage] = React.useState('store');
+  const [previewDensity, setPreviewDensity] = React.useState('compact');
   const [busy, setBusy] = React.useState(false);
   const [uploading, setUploading] = React.useState('');
   const [error, setError] = React.useState('');
   const [restoreOpen, setRestoreOpen] = React.useState(false);
   const dirty = JSON.stringify(draft) !== baseline;
   const companyName = getCommerceDisplayName(storefront.stores);
+  const previewStorefront = useStorefront();
+  const catalog = useCatalogProducts({
+    enabled: previewPage === 'store' && !previewStorefront.loading,
+    categories: previewStorefront.categories,
+    limit: 6,
+    storeIds: previewStorefront.storeIds,
+  });
+  const storesById = React.useMemo(() => new Map(previewStorefront.stores.map((store) => [String(store._id), store])), [previewStorefront.stores]);
   const tokens = React.useMemo(() => appearanceTokens(draft, previewMode), [draft, previewMode]);
   const previewTheme = React.useMemo(() => buildTheme(previewMode, draft), [draft, previewMode]);
   const invalidColor = ['primary', 'secondary', 'background'].some((key) => !/^#[\da-f]{6}$/i.test(draft[key]));
@@ -167,16 +181,32 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
           <ToggleButtonGroup exclusive fullWidth onChange={(_event, value) => value && setPreviewPage(value)} size="small" value={previewPage} aria-label="Pantalla de la vista previa" sx={{ mb: 2 }}>
             <ToggleButton value="store">Tienda y menú</ToggleButton><ToggleButton value="login">Login</ToggleButton><ToggleButton value="orders">Mis pedidos</ToggleButton>
           </ToggleButtonGroup>
+          {previewPage === 'store' ? <Box className="appearance-preview-density">
+            <Typography color="text.secondary" variant="caption">Tamaño de tarjetas en la vista previa</Typography>
+            <ToggleButtonGroup exclusive onChange={(_event, value) => value && setPreviewDensity(value)} size="small" value={previewDensity} aria-label="Tamaño de tarjetas en la vista previa">
+              <ToggleButton value="compact">Compactas</ToggleButton><ToggleButton value="comfortable">Amplias</ToggleButton>
+            </ToggleButtonGroup>
+          </Box> : null}
           <ThemeProvider theme={previewTheme}>
-            <Box className="appearance-preview" style={{ ...tokens.variables, background: tokens.background, color: tokens.text }}>
+            <Box className={`appearance-preview mode-${previewMode}`} style={{ ...tokens.variables, color: tokens.text }}>
               <Box className="appearance-preview-header"><BrandLogo src={draft.logo} name={companyName} /><strong>{companyName}</strong><span>Tienda</span></Box>
               {previewPage === 'store' ? <>
-                <Box className={`appearance-preview-hero${draft.cover ? ' has-brand-image' : ''}`}>
-                  <BrandImage src={draft.cover} className="brand-cover-image" />
-                  <Box className="appearance-preview-hero-copy"><Typography variant="overline">HECHO PARA TI</Typography><Typography variant="h5">{draft.headline || `${companyName}, en tu puerta.`}</Typography><Typography sx={{ mt: 1 }} variant="body2">{draft.description || 'Descubre tus próximos favoritos y compra a tu manera.'}</Typography></Box>
+                <Box className="appearance-preview-toolbar" aria-hidden="true">
+                  <span className="appearance-preview-filter"><TuneRoundedIcon /> Filtros</span>
+                  <span className="appearance-preview-search"><SearchRoundedIcon /> Buscar en {companyName}</span>
+                  <span className="appearance-preview-category">Destacados</span>
                 </Box>
-                <Box className="appearance-preview-products">
-                  {[0, 1, 2].map((index) => <Box className="appearance-preview-product" key={index}><Box className="appearance-preview-product-image" style={{ background: index === 1 ? tokens.soft : 'var(--accent-soft)' }}><span>{['◯', '◇', '▱'][index]}</span></Box><strong>Tu producto</strong><span>Selección de la tienda</span><Button aria-hidden="true" component="span" tabIndex={-1} variant="contained">Agregar</Button></Box>)}
+                <Box className={`store-compact-banner appearance-preview-hero${draft.cover ? ' has-brand-image' : ''}`}>
+                  <BrandImage src={draft.cover} className="brand-cover-image" />
+                  <Box className="store-compact-banner-main"><Chip className="hero-kicker" icon={<CheckCircleOutlineRoundedIcon />} label="CARGA BAJO DEMANDA · SEGUIMIENTO EN TIEMPO REAL" size="small" /><Typography className="store-compact-banner-title" variant="h2">{draft.headline || `${companyName}, en tu puerta.`}</Typography><Typography className="store-compact-banner-desc" variant="body2">{draft.description || previewStorefront.stores[0]?.descripcion || 'Selecciona una categoría, busca un producto o carga más resultados según lo que necesites.'}</Typography></Box>
+                </Box>
+                <Box className="appearance-preview-catalog">
+                  <Typography variant="h6">Productos de tu tienda</Typography>
+                  {previewStorefront.loading || catalog.loading ? <Typography color="text.secondary" variant="body2">Cargando productos para la vista previa…</Typography> : catalog.products.length ? (
+                    <Box inert className={`product-grid ${previewDensity} appearance-preview-products`}>
+                      {catalog.products.map((product) => <ProductCard key={product._id} product={product} store={storesById.get(String(product.idTienda))} compact={previewDensity === 'compact'} />)}
+                    </Box>
+                  ) : <Typography color="text.secondary" variant="body2">Los productos visibles aparecerán aquí cuando estén disponibles.</Typography>}
                 </Box>
               </> : previewPage === 'orders' ? <Box className="appearance-preview-orders">
                 <OrdersHero image={draft.ordersCover} />

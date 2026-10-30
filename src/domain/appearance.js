@@ -48,9 +48,11 @@ export function readableColor(color, surface, minimum = 4.5) {
 export function appearanceTokens(settings, mode = 'light') {
   const appearance = normalizeAppearance(settings);
   const dark = mode === 'dark';
+  const text = dark ? '#f7f5fc' : '#201d27';
+  const muted = dark ? '#bcb8c6' : '#6f6b78';
   let background = appearance.background;
   const target = dark ? '#0c0c12' : '#ffffff';
-  for (let step = 0; step <= 100 && (dark ? luminance(background) > 0.02 : luminance(background) < 0.88); step += 1) {
+  for (let step = 0; step <= 100 && ((dark ? luminance(background) >= luminance(muted) : luminance(background) <= luminance(muted)) || contrastRatio(background, muted) < (dark ? 5.5 : 4.5)); step += 1) {
     background = mixColor(appearance.background, target, step / 100);
   }
   const paper = dark ? mixColor(background, '#ffffff', 0.045) : '#ffffff';
@@ -58,11 +60,16 @@ export function appearanceTokens(settings, mode = 'light') {
   const secondary = readableColor(readableColor(appearance.secondary, paper), background);
   const onPrimary = contrastRatio(primary, '#ffffff') >= contrastRatio(primary, '#000000') ? '#ffffff' : '#000000';
   const onSecondary = contrastRatio(secondary, '#ffffff') >= contrastRatio(secondary, '#000000') ? '#ffffff' : '#000000';
-  const text = dark ? '#f7f5fc' : '#201d27';
-  const muted = dark ? '#bcb8c6' : '#6f6b78';
   const soft = mixColor(paper, primary, dark ? 0.12 : 0.055);
-  const header = mixColor(paper, primary, dark ? 0.2 : 0.1);
-  const footer = mixColor(paper, secondary, dark ? 0.17 : 0.08);
+  const safeSurface = (color) => {
+    let surface = color;
+    for (let step = 0; step <= 100 && contrastRatio(surface, muted) < 4.5; step += 1) {
+      surface = mixColor(color, target, step / 100);
+    }
+    return surface;
+  };
+  const header = safeSurface(mixColor(paper, primary, dark ? 0.2 : 0.1));
+  const footer = safeSurface(mixColor(paper, secondary, dark ? 0.17 : 0.08));
   const hero = mixColor(appearance.primary, '#080a12', 0.75);
   const heroEnd = readableColor(mixColor(appearance.primary, '#080a12', 0.4), '#ffffff', 9);
   return {

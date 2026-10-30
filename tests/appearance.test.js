@@ -38,8 +38,15 @@ test('paletas y colores extremos mantienen contraste AA en claro y oscuro', () =
       assert.ok(contrastRatio(tokens.hero, '#ffffff') >= 4.5);
       assert.ok(contrastRatio(tokens.heroEnd, '#ffffff') >= 4.5);
       assert.ok(contrastRatio(tokens.heroEnd, mixColor('#ffffff', tokens.heroEnd, 0.22)) >= 4.5);
+      assert.ok(contrastRatio(tokens.muted, tokens.variables['--brand-header']) >= 4.5);
+      assert.ok(contrastRatio(tokens.muted, tokens.variables['--brand-footer']) >= 4.5);
     }
   }
+});
+
+test('conserva el color de fondo elegido cuando ya tiene contraste suficiente', () => {
+  assert.equal(appearanceTokens({ background: '#fff4ce' }, 'light').background, '#fff4ce');
+  assert.equal(appearanceTokens({ background: '#0e2222' }, 'dark').background, '#0e2222');
 });
 
 test('la identidad de una empresa no modifica defaults ni configuraciones de otras tiendas', () => {
