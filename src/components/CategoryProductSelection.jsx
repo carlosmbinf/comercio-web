@@ -35,6 +35,9 @@ export default function CategoryProductSelection({ category, storefront, storesB
     return () => observer.disconnect();
   }, []);
 
+  // Esperar a la carga real: las secciones fuera de pantalla aún no se consultaron.
+  if (visible && !loading && !error && products.length === 0) return null;
+
   return (
     <Box component="section" className="category-product-section" ref={sectionRef} aria-label={category.name || category.label}>
       <Box className="category-product-heading">
@@ -60,14 +63,12 @@ export default function CategoryProductSelection({ category, storefront, storesB
             </Paper>
           ))}
         </Box>
-      ) : products.length ? (
+      ) : (
         <Box className={`product-grid ${viewMode}`}>
           {products.map((product) => (
             <ProductCard key={product._id} product={product} store={storesById.get(String(product.idTienda))} cartBlocked={cartBlocked} cartReady={cart.ready} compact={viewMode === 'compact'} onAdd={cart.addProduct} onNotify={notify} />
           ))}
         </Box>
-      ) : (
-        <Typography color="text.secondary" variant="body2">No hay productos en esta categoría por ahora.</Typography>
       )}
     </Box>
   );
