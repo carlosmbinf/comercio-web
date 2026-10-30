@@ -69,10 +69,11 @@ export function useStorefront({ subscribeCategories = true } = {}) {
     const ownerId = resolveCompanyOwnerId(seedStores, COMERCIO_EMPRESA_ID) ||
       (seedHandle.ready() ? COMERCIO_EMPRESA_ID : '');
     const categoriesHandle = subscribeCategories && ownerId
-      ? Meteor.subscribe('categoriasComercioCatalogo', ownerId)
+      // El árbol es compartido: creadaPor identifica al autor, no a las tiendas que lo usan.
+      ? Meteor.subscribe('categoriasComercioCatalogo')
       : { ready: () => !subscribeCategories || !ownerId };
     const categories = ownerId
-      ? CategoriasComercioCollection.find({ creadaPor: ownerId }, {
+      ? CategoriasComercioCollection.find({ activa: { $ne: false } }, {
           fields: { _id: 1, creadaPor: 1, nombre: 1, idCategoriaHeredada: 1, visibleEnInicio: 1, ordenInicio: 1 },
         }).fetch()
       : [];
