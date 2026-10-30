@@ -28,7 +28,6 @@ import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import FilterAltOffRoundedIcon from '@mui/icons-material/FilterAltOffRounded';
 import GridViewRoundedIcon from '@mui/icons-material/GridViewRounded';
-import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
@@ -41,10 +40,11 @@ import ProductCard from '../components/ProductCard';
 import CategoryProductSelection from '../components/CategoryProductSelection';
 import { CategoryMenu, CategoryTreeExplorer } from '../components/CategoryNavigation';
 import { CATALOG_LIMIT_STEP, INITIAL_CATALOG_LIMIT, MAX_CATALOG_LIMIT } from '../domain/commerce';
-import { buildCategoryTree, CATEGORY_SELECTION_LIMIT, UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories } from '../domain/categories';
+import { buildCategoryTree, UNCATEGORIZED_CATEGORY_ID, categoryIdsFor, getCatalogCategories } from '../domain/categories';
 import { useCatalogProducts } from '../hooks/useStorefront';
 import './store.css';
-import BrandImage from '../components/BrandImage';
+import StoreHero from '../components/StoreHero';
+import StoreContentBlocks from '../components/StoreContentBlocks';
 import { useStoreBranding } from '../components/StoreBranding';
 
 const AVAILABILITY_OPTIONS = [
@@ -76,7 +76,8 @@ export function StorePage() {
   const [maxPrice, setMaxPrice] = React.useState('');
   const [sort, setSort] = React.useState('recommended');
   const [limit, setLimit] = React.useState(INITIAL_CATALOG_LIMIT);
-  const [viewMode, setViewMode] = React.useState('compact');
+  const [viewModeOverride, setViewMode] = React.useState(null);
+  const viewMode = viewModeOverride || appearance.design.defaultView;
   const [filterDrawerOpen, setFilterDrawerOpen] = React.useState(false);
   const [clearingCart, setClearingCart] = React.useState(false);
   const [cartActionError, setCartActionError] = React.useState('');
@@ -189,9 +190,9 @@ export function StorePage() {
     setSelectedCategory((current) => (current === categoryId && categoryId !== 'all' ? 'all' : categoryId));
   };
 
-  const storeLabel = visibleStores.length === 1
+  const storeLabel = appearance.design.siteName || (visibleStores.length === 1
     ? visibleStores[0]?.title || visibleStores[0]?.name || getCommerceDisplayName(storefront.stores)
-    : getCommerceDisplayName(storefront.stores);
+    : getCommerceDisplayName(storefront.stores));
   const isCartBlocked = cart.conflicts.foreignCommerceItems.length > 0 || cart.conflicts.incompatibleItems.length > 0;
   const selectedCategoryObj = categoryOptions.find((cat) => cat.id === selectedCategory);
   const selectedStoreObj = visibleStores.find((st) => String(st._id) === selectedStore);
@@ -335,58 +336,7 @@ export function StorePage() {
         </Box>
       </Paper>
 
-      {/* BANNER EJECUTIVO COMPACTO */}
-      <section className={`store-compact-banner${appearance.cover ? ' has-brand-image' : ''}`}>
-        <BrandImage src={appearance.cover} className="brand-cover-image" />
-        <Box className="store-compact-banner-main">
-          <Chip
-            className="hero-kicker"
-            icon={<CheckCircleOutlineRoundedIcon />}
-            label="CARGA BAJO DEMANDA · SEGUIMIENTO EN TIEMPO REAL"
-            size="small"
-          />
-          <Typography className="store-compact-banner-title" variant="h2">
-            {appearance.headline || (visibleStores.length === 1 ? (
-              <>
-                {storeLabel} <span>en tu puerta.</span>
-              </>
-            ) : (
-              <>
-                Catálogo oficial de <span>{storeLabel}</span>
-              </>
-            ))}
-          </Typography>
-          <Typography className="store-compact-banner-desc" variant="body2">
-            {appearance.description || (visibleStores.length === 1
-              ? visibleStores[0]?.descripcion || 'Selecciona una categoría, busca un producto o carga más resultados según lo que necesites.'
-              : 'Elige una categoría o sucursal arriba para consultar sus productos al instante sin recargar toda la tienda.')}
-          </Typography>
-        </Box>
-
-        <Box className="store-compact-kpis">
-          <Box className="store-compact-kpi">
-            <Box className="highlight-icon violet"><StorefrontRoundedIcon fontSize="small" /></Box>
-            <Box>
-              <strong>{visibleStores.length}</strong>
-              <span>{visibleStores.length === 1 ? 'Sucursal' : 'Sucursales'}</span>
-            </Box>
-          </Box>
-          <Box className="store-compact-kpi">
-            <Box className="highlight-icon orange"><CheckCircleOutlineRoundedIcon fontSize="small" /></Box>
-            <Box>
-              <strong>{showCategorySelections ? CATEGORY_SELECTION_LIMIT : INITIAL_CATALOG_LIMIT}</strong>
-              <span>{showCategorySelections ? 'Por categoría principal' : 'Por bloque inicial'}</span>
-            </Box>
-          </Box>
-          <Box className="store-compact-kpi">
-            <Box className="highlight-icon green"><LocalShippingOutlinedIcon fontSize="small" /></Box>
-            <Box>
-              <strong>En vivo</strong>
-              <span>Entrega rastreable</span>
-            </Box>
-          </Box>
-        </Box>
-      </section>
+      <StoreHero appearance={appearance} stores={visibleStores} storeLabel={storeLabel} showCategorySelections={showCategorySelections} />
 
       {!isCompanyConfigured ? (
         <Alert severity="info">
@@ -418,6 +368,7 @@ export function StorePage() {
       ) : null}
       {cartActionError ? <Alert className="cart-conflict-alert" onClose={() => setCartActionError('')} severity="error">{cartActionError}</Alert> : null}
 
+      <StoreContentBlocks appearance={appearance} placement="before-products" />
       {/* SECCIÓN PRINCIPAL DEL CATÁLOGO CON CARGA PROGRESIVA */}
       <section className="catalog-section" id="catalogo">
         <Box className="catalog-bar">
@@ -429,7 +380,7 @@ export function StorePage() {
                   ? selectedStoreObj.title || selectedStoreObj.name
                   : hasAnyFilter
                     ? 'Resultados filtrados'
-                    : 'Descubre por categorías'}
+                    : appearance.design.catalogTitle || 'Descubre por categorías'}
             </Typography>
             <Chip
               className="catalog-count"
@@ -639,6 +590,8 @@ export function StorePage() {
           </>
         )}
       </section>
+
+      <StoreContentBlocks appearance={appearance} placement="after-products" />
 
       {/* DRAWER LATERAL DE FILTROS AVANZADOS */}
       <Drawer

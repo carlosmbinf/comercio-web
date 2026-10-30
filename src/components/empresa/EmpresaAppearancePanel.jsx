@@ -1,29 +1,29 @@
 import React from 'react';
-import { Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, ThemeProvider, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import PaletteRoundedIcon from '@mui/icons-material/PaletteRounded';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
-import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
-import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import { getCommerceDisplayName } from '../../config';
-import { APPEARANCE_PRESETS, DEFAULT_APPEARANCE, appearanceTokens, normalizeAppearance } from '../../domain/appearance';
+import { APPEARANCE_PRESETS, DEFAULT_APPEARANCE, normalizeAppearance } from '../../domain/appearance';
 import { prepareAppearanceImage } from '../../domain/appearanceImage';
 import { ensureEmpresaMethodSuccess } from '../../domain/empresa';
 import { callMeteor } from '../../meteor/client';
-import { buildTheme } from '../../theme';
+import { validateCustomization } from '../../domain/appearanceCustomization';
+import AppearanceCustomizationControls from './AppearanceCustomizationControls';
+import AppearancePreview from './AppearancePreview';
 import { useCatalogProducts, useStorefront } from '../../hooks/useStorefront';
-import BrandImage, { BrandLogo } from '../BrandImage';
+import BrandImage from '../BrandImage';
 import { useStoreBranding } from '../StoreBranding';
-import OrdersHero from '../OrdersHero';
-import ProductCard from '../ProductCard';
 
 const IMAGE_SLOTS = [
   { key: 'logo', title: 'Logo de la tienda', hint: 'Formato cuadrado · recomendado 400 × 400 px. Aparece en el menú y el login.' },
   { key: 'cover', title: 'Portada del catálogo', hint: 'Formato horizontal · recomendado 1600 × 700 px. Presenta tu tienda en la página principal.' },
   { key: 'loginImage', title: 'Imagen de bienvenida', hint: 'Recomendado 1200 × 1400 px. Acompaña el acceso a la cuenta.' },
+  { key: 'backgroundImage', title: 'Fondo de la página', hint: 'Imagen de ambiente para el fondo del sitio. Se aplica un velo suave para conservar la lectura.' },
+  { key: 'headerImage', title: 'Fondo de la cabecera', hint: 'Formato horizontal. Personaliza el área de la marca y la navegación.' },
+  { key: 'footerImage', title: 'Fondo del footer', hint: 'Formato horizontal. Aparece detrás del texto y los enlaces del pie de página.' },
   { key: 'ordersCover', title: 'Portada de Mis pedidos', hint: 'Formato horizontal · recomendado 1600 × 500 px. Aparece detrás del título de Mis pedidos.' },
 ];
 
@@ -34,7 +34,6 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
   const [initialized, setInitialized] = React.useState(branding.ready);
   const [previewMode, setPreviewMode] = React.useState('light');
   const [previewPage, setPreviewPage] = React.useState('store');
-  const [previewDensity, setPreviewDensity] = React.useState('compact');
   const [busy, setBusy] = React.useState(false);
   const [uploading, setUploading] = React.useState('');
   const [error, setError] = React.useState('');
@@ -43,14 +42,15 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
   const companyName = getCommerceDisplayName(storefront.stores);
   const previewStorefront = useStorefront();
   const catalog = useCatalogProducts({
-    enabled: previewPage === 'store' && !previewStorefront.loading,
+    enabled: ['store', 'footer'].includes(previewPage) && !previewStorefront.loading,
     categories: previewStorefront.categories,
     limit: 6,
     storeIds: previewStorefront.storeIds,
   });
-  const storesById = React.useMemo(() => new Map(previewStorefront.stores.map((store) => [String(store._id), store])), [previewStorefront.stores]);
-  const tokens = React.useMemo(() => appearanceTokens(draft, previewMode), [draft, previewMode]);
-  const previewTheme = React.useMemo(() => buildTheme(previewMode, draft), [draft, previewMode]);
+  const customizationError = React.useMemo(() => {
+    try { validateCustomization(draft.design); return ''; }
+    catch (validationError) { return validationError.message; }
+  }, [draft.design]);
   const invalidColor = ['primary', 'secondary', 'background'].some((key) => !/^#[\da-f]{6}$/i.test(draft[key]));
 
   React.useEffect(() => {
@@ -81,7 +81,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
     finally { setUploading(''); }
   };
   const save = async () => {
-    if (!branding.ready || busy || uploading || invalidColor) return;
+    if (!branding.ready || busy || uploading || invalidColor || customizationError) return;
     setBusy(true);
     setError('');
     try {
@@ -108,7 +108,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
         <Box>
           <Typography className="eyebrow" variant="overline">EL ESTILO DE TU MARCA</Typography>
           <Typography variant="h4">Una tienda que se siente tuya</Typography>
-          <Typography color="text.secondary" sx={{ mt: 1 }}>Colores, imágenes y una bienvenida propia. El diseño se adapta manteniendo su armonía.</Typography>
+          <Typography color="text.secondary" sx={{ mt: 1 }}>Dale una estructura propia: fondos, tarjetas, tipografía, cabecera, portada y enlaces. Cada cambio se refleja en la vista previa antes de publicarlo.</Typography>
         </Box>
         <Chip color={dirty ? 'warning' : 'success'} variant="outlined" label={dirty ? 'Cambios sin publicar' : 'Todo guardado'} />
       </Box>
@@ -117,7 +117,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
         <Stack spacing={2.5} component="fieldset" disabled={busy || Boolean(uploading)} className="appearance-controls">
           <Card className="appearance-section" elevation={0}>
             <Box className="appearance-section-title"><PaletteRoundedIcon color="primary" /><Typography variant="h6">01 · Tu paleta</Typography></Box>
-            <Typography color="text.secondary" variant="body2">El color principal también viste la cabecera; el secundario da identidad al pie de página. Ambos mantienen el contraste en los modos claro y oscuro.</Typography>
+            <Typography color="text.secondary" variant="body2">Colores de marca para botones y detalles. Más abajo puedes elegir fondos independientes para cada parte del sitio.</Typography>
             <Box className="appearance-presets">
               {APPEARANCE_PRESETS.map((preset) => {
                 const selected = ['primary', 'secondary', 'background'].every((key) => draft[key].toLowerCase() === preset[key]);
@@ -128,7 +128,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
               })}
             </Box>
             <Box className="appearance-colors">
-              {[['primary', 'Principal · cabecera y navegación'], ['secondary', 'Secundario · pie de página'], ['background', 'Fondo general']].map(([key, label]) => (
+              {[['primary', 'Color principal'], ['secondary', 'Color secundario'], ['background', 'Base de fondo automática']].map(([key, label]) => (
                 <Box className="appearance-color" key={key}>
                   <input aria-label={`Elegir color ${label.toLowerCase()}`} disabled={busy || Boolean(uploading)} onChange={(event) => update(key, event.target.value)} type="color" value={/^#[\da-f]{6}$/i.test(draft[key]) ? draft[key] : DEFAULT_APPEARANCE[key]} />
                   <TextField error={!/^#[\da-f]{6}$/i.test(draft[key])} fullWidth label={label} onChange={(event) => update(key, event.target.value)} size="small" value={draft[key]} slotProps={{ htmlInput: { maxLength: 7, spellCheck: false } }} />
@@ -138,8 +138,10 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
             <Typography color="text.secondary" variant="caption">Ajustamos el contraste de botones y textos automáticamente. El fondo se aplica como un tono suave en cada modo.</Typography>
           </Card>
 
+          <AppearanceCustomizationControls design={draft.design} onChange={(value) => update('design', value)} disabled={busy || Boolean(uploading)} />
+
           <Card className="appearance-section" elevation={0}>
-            <Typography variant="h6">02 · Imágenes que cuentan tu historia</Typography>
+            <Typography variant="h6">09 · Imágenes que cuentan tu historia</Typography>
             <Typography color="text.secondary" sx={{ mt: 0.75, mb: 2 }} variant="body2">JPG, PNG o WebP, hasta 8 MB. Las optimizamos antes de publicar.</Typography>
             <Stack spacing={2}>
               {IMAGE_SLOTS.map(({ key, title, hint }) => <Box className="appearance-image-field" key={key}>
@@ -162,7 +164,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
           </Card>
 
           <Card className="appearance-section" elevation={0}>
-            <Typography variant="h6">03 · La voz de tu tienda</Typography>
+            <Typography variant="h6">10 · La voz de tu tienda</Typography>
             <Stack spacing={2} sx={{ mt: 2 }}>
               <TextField fullWidth label="Título del catálogo" onChange={(event) => update('headline', event.target.value)} placeholder={`${companyName}, en tu puerta.`} value={draft.headline} helperText={`${draft.headline.length}/90 · Vacío: texto original`} slotProps={{ htmlInput: { maxLength: 90 } }} />
               <TextField fullWidth label="Descripción de bienvenida" minRows={2} multiline onChange={(event) => update('description', event.target.value)} value={draft.description} helperText={`${draft.description.length}/240`} slotProps={{ htmlInput: { maxLength: 240 } }} />
@@ -179,64 +181,25 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
             </ToggleButtonGroup>
           </Box>
           <ToggleButtonGroup exclusive fullWidth onChange={(_event, value) => value && setPreviewPage(value)} size="small" value={previewPage} aria-label="Pantalla de la vista previa" sx={{ mb: 2 }}>
-            <ToggleButton value="store">Tienda y menú</ToggleButton><ToggleButton value="login">Login</ToggleButton><ToggleButton value="orders">Mis pedidos</ToggleButton>
+            <ToggleButton value="store">Tienda</ToggleButton><ToggleButton value="login">Login</ToggleButton><ToggleButton value="orders">Pedidos</ToggleButton><ToggleButton value="footer">Footer</ToggleButton>
           </ToggleButtonGroup>
-          {previewPage === 'store' ? <Box className="appearance-preview-density">
-            <Typography color="text.secondary" variant="caption">Tamaño de tarjetas en la vista previa</Typography>
-            <ToggleButtonGroup exclusive onChange={(_event, value) => value && setPreviewDensity(value)} size="small" value={previewDensity} aria-label="Tamaño de tarjetas en la vista previa">
-              <ToggleButton value="compact">Compactas</ToggleButton><ToggleButton value="comfortable">Amplias</ToggleButton>
-            </ToggleButtonGroup>
-          </Box> : null}
-          <ThemeProvider theme={previewTheme}>
-            <Box className={`appearance-preview mode-${previewMode}`} style={{ ...tokens.variables, color: tokens.text }}>
-              <Box className="appearance-preview-header"><BrandLogo src={draft.logo} name={companyName} /><strong>{companyName}</strong><span>Tienda</span></Box>
-              {previewPage === 'store' ? <>
-                <Box className="appearance-preview-toolbar" aria-hidden="true">
-                  <span className="appearance-preview-filter"><TuneRoundedIcon /> Filtros</span>
-                  <span className="appearance-preview-search"><SearchRoundedIcon /> Buscar en {companyName}</span>
-                  <span className="appearance-preview-category">Destacados</span>
-                </Box>
-                <Box className={`store-compact-banner appearance-preview-hero${draft.cover ? ' has-brand-image' : ''}`}>
-                  <BrandImage src={draft.cover} className="brand-cover-image" />
-                  <Box className="store-compact-banner-main"><Chip className="hero-kicker" icon={<CheckCircleOutlineRoundedIcon />} label="CARGA BAJO DEMANDA · SEGUIMIENTO EN TIEMPO REAL" size="small" /><Typography className="store-compact-banner-title" variant="h2">{draft.headline || `${companyName}, en tu puerta.`}</Typography><Typography className="store-compact-banner-desc" variant="body2">{draft.description || previewStorefront.stores[0]?.descripcion || 'Selecciona una categoría, busca un producto o carga más resultados según lo que necesites.'}</Typography></Box>
-                </Box>
-                <Box className="appearance-preview-catalog">
-                  <Typography variant="h6">Productos de tu tienda</Typography>
-                  {previewStorefront.loading || catalog.loading ? <Typography color="text.secondary" variant="body2">Cargando productos para la vista previa…</Typography> : catalog.products.length ? (
-                    <Box inert className={`product-grid ${previewDensity} appearance-preview-products`}>
-                      {catalog.products.map((product) => <ProductCard key={product._id} product={product} store={storesById.get(String(product.idTienda))} compact={previewDensity === 'compact'} />)}
-                    </Box>
-                  ) : <Typography color="text.secondary" variant="body2">Los productos visibles aparecerán aquí cuando estén disponibles.</Typography>}
-                </Box>
-              </> : previewPage === 'orders' ? <Box className="appearance-preview-orders">
-                <OrdersHero image={draft.ordersCover} />
-                <Box className="appearance-preview-input">Seguimiento de tus compras</Box>
-                <Box className="appearance-preview-input">Historial de pedidos</Box>
-              </Box> : <Box className="appearance-preview-login">
-                <Box className={`appearance-preview-login-story${draft.loginImage ? ' has-brand-image' : ''}`}>
-                  <BrandImage src={draft.loginImage} className="brand-cover-image" />
-                  <Typography variant="h5">{draft.loginHeadline || 'Todo lo que te gusta, en un solo lugar.'}</Typography>
-                </Box>
-                <Box className="appearance-preview-login-form"><BrandLogo src={draft.logo} name={companyName} /><Typography variant="h6">Inicia sesión</Typography><Typography color="text.secondary" variant="body2">Bienvenido a {companyName}</Typography><Box className="appearance-preview-input">Usuario o correo</Box><Box className="appearance-preview-input">Contraseña</Box><Button tabIndex={-1} variant="contained" sx={{ pointerEvents: 'none' }}>Continuar</Button></Box>
-              </Box>}
-              <Box className="appearance-preview-footer">{companyName} · COMERCIO</Box>
-            </Box>
-          </ThemeProvider>
+          <AppearancePreview draft={draft} mode={previewMode} page={previewPage} density={draft.design.defaultView} companyName={draft.design.siteName || companyName} storefront={previewStorefront} catalog={catalog} />
           <Alert severity="info" sx={{ mt: 2 }}>Los colores se adaptan al modo claro y oscuro. Las imágenes llevan un velo para mantener el texto legible.</Alert>
         </Box>
       </Box>
 
+      {customizationError ? <Alert severity="warning">{customizationError}</Alert> : null}
       {error ? <Alert severity="error">{error}</Alert> : null}
       <Box className="appearance-save-bar">
         <Button color="inherit" disabled={busy || Boolean(uploading)} onClick={() => setRestoreOpen(true)} startIcon={<RestartAltRoundedIcon />}>Restaurar diseño original</Button>
         <Box className="appearance-save-actions">
           <Button disabled={!dirty || busy || Boolean(uploading)} onClick={() => { setDraft(JSON.parse(baseline)); setError(''); }}>Descartar</Button>
-          <Button disabled={!dirty || busy || Boolean(uploading) || invalidColor} onClick={save} startIcon={busy ? <CircularProgress color="inherit" size={18} /> : <SaveOutlinedIcon />} variant="contained">{busy ? 'Publicando…' : 'Publicar apariencia'}</Button>
+          <Button disabled={!dirty || busy || Boolean(uploading) || invalidColor || Boolean(customizationError)} onClick={save} startIcon={busy ? <CircularProgress color="inherit" size={18} /> : <SaveOutlinedIcon />} variant="contained">{busy ? 'Publicando…' : 'Publicar apariencia'}</Button>
         </Box>
       </Box>
       <Dialog open={restoreOpen} onClose={() => setRestoreOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Restaurar el diseño original</DialogTitle>
-        <DialogContent>Se quitarán los colores, imágenes y textos personalizados de la vista previa. Publica después para aplicar el cambio a tu tienda.</DialogContent>
+        <DialogContent>Se quitarán los colores, imágenes, enlaces y ajustes personalizados de la vista previa. Publica después para aplicar el cambio a tu tienda.</DialogContent>
         <DialogActions><Button onClick={() => setRestoreOpen(false)}>Cancelar</Button><Button onClick={() => { setDraft({ ...DEFAULT_APPEARANCE }); setError(''); setRestoreOpen(false); }}>Restaurar</Button></DialogActions>
       </Dialog>
     </Box>

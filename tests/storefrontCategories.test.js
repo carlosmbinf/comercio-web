@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { compileFunction } from 'node:vm';
 import test from 'node:test';
+import React from 'react';
+import { renderToString } from 'react-dom/server';
 import { getVisibleCatalogProducts, getCategorySelectionProducts } from '../src/domain/categories.js';
 import { buildCatalogSubscriptionQuery, INITIAL_CATALOG_LIMIT, resolveCompanyOwnerId, selectCompanyProducts, selectCompanyStores } from '../src/domain/commerce.js';
 
@@ -55,4 +57,37 @@ test('un producto activo de una tienda propia sigue visible con una ruta de cate
   assert.deepEqual(storefront.categories.map(({ _id }) => _id), ['shared-root', 'shared-leaf', 'hidden']);
   const catalog = useCatalogProducts({ storeIds: storefront.storeIds, categories: storefront.categories, selectedStore: 'own-store' });
   assert.deepEqual(catalog.products.map(({ _id }) => _id), ['active-product']);
+});
+
+test('el catálogo se renderiza sin bucle cuando no se proporcionan filtros de categoría', () => {
+  const dependencies = {
+    React,
+    Meteor: {
+      useTracker: (fn, deps) => {
+        const [, forceUpdate] = React.useReducer((value) => value + 1, 0);
+        return React.useMemo(() => {
+          const result = fn();
+          forceUpdate();
+          return result;
+        }, deps);
+      },
+      subscribe: () => ({ ready: () => true }),
+    },
+    CategoriasComercioCollection: {}, ProductosComercioCollection: collection(products),
+    SeleccionesCatalogoCollection: {}, TiendasComercioCollection: {},
+    COMERCIO_EMPRESA_ID: ownerId, isCompanyConfigured: true,
+    INITIAL_CATALOG_LIMIT, buildCatalogSubscriptionQuery, resolveCompanyOwnerId, selectCompanyProducts, selectCompanyStores,
+    getCategorySelectionProducts, getVisibleCatalogProducts,
+  };
+  const { useCatalogProducts } = compileFunction(`${source}\nreturn { useCatalogProducts };`, Object.keys(dependencies))(...Object.values(dependencies));
+  const categories = categoryRows.filter((row) => row.activa !== false);
+  function Preview() {
+    const result = useCatalogProducts({ categories, storeIds: ['own-store'] });
+    return React.createElement('span', null, result.products.map((product) => product._id).join(','));
+  }
+  assert.match(renderToString(React.createElement(Preview)), /active-product/);
+  function EmptyPreview() {
+    return React.createElement('span', null, useCatalogProducts().ready ? 'listo' : 'cargando');
+  }
+  assert.match(renderToString(React.createElement(EmptyPreview)), /listo/);
 });

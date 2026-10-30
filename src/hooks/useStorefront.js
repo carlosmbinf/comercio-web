@@ -23,6 +23,10 @@ const STORE_FIELDS = {
   ubicacion: 1,
 };
 
+// useTracker reinicia su cálculo al cambiar una dependencia por referencia.
+const EMPTY_CATEGORIES = [];
+const EMPTY_CATEGORY_IDS = new Map();
+
 export const PRODUCT_FIELDS = {
   'mercadoLibre.status': 1,
   _id: 1,
@@ -113,8 +117,8 @@ export function useStorefront({ subscribeCategories = true } = {}) {
 export function useCatalogProducts({
   enabled = true,
   availability = 'all',
-  categories = [],
-  categoryIds = new Map(),
+  categories = EMPTY_CATEGORIES,
+  categoryIds = EMPTY_CATEGORY_IDS,
   limit = INITIAL_CATALOG_LIMIT,
   maxPrice = '',
   minPrice = '',

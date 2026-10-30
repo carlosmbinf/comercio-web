@@ -142,6 +142,7 @@ export function EmpresaPage() {
   const navigate = useNavigate();
   const { auth, notify, storefront, user, userReady } = useOutletContext();
   const [section, setSection] = React.useState('pedidos');
+  const [appearanceVisited, setAppearanceVisited] = React.useState(false);
   const [exiting, setExiting] = React.useState(false);
 
   if (!isCompanyConfigured) {
@@ -217,7 +218,7 @@ export function EmpresaPage() {
       <Paper className="empresa-tabs-shell" elevation={0}>
         <Tabs
           aria-label="Secciones del modo empresa"
-          onChange={(_event, value) => setSection(value)}
+          onChange={(_event, value) => { setSection(value); if (value === 'apariencia') setAppearanceVisited(true); }}
           scrollButtons="auto"
           value={section}
           variant="scrollable"
@@ -228,7 +229,7 @@ export function EmpresaPage() {
 
       <Box className="empresa-section" role="tabpanel">
         <Box hidden={section !== 'apariencia'}>
-          <EmpresaAppearancePanel key={storefront.companyId} notify={notify} storefront={storefront} />
+          {appearanceVisited ? <EmpresaAppearancePanel key={storefront.companyId} notify={notify} storefront={storefront} /> : null}
         </Box>
         {section === 'pedidos' ? <EmpresaOrdersPanel notify={notify} storeIds={storefront.storeIds} stores={storefront.stores} userId={auth.userId} /> : null}
         {section === 'productos' ? <EmpresaProductsPanel notify={notify} storefront={storefront} user={user} /> : null}

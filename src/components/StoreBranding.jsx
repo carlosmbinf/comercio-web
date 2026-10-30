@@ -9,6 +9,14 @@ export const useStoreBranding = () => React.useContext(BrandingContext);
 export default function StoreBranding({ children, mode, branding }) {
   const theme = React.useMemo(() => buildTheme(mode, branding.appearance), [mode, branding.appearance]);
   const tokens = React.useMemo(() => appearanceTokens(branding.appearance, mode), [mode, branding.appearance]);
+  React.useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const previous = meta?.content;
+    if (meta) meta.content = tokens.background;
+    const icon = branding.appearance.logo ? document.createElement('link') : null;
+    if (icon) { icon.rel = 'icon'; icon.href = branding.appearance.logo; document.head.append(icon); }
+    return () => { if (meta) meta.content = previous; icon?.remove(); };
+  }, [tokens.background, branding.appearance.logo]);
   return (
     <BrandingContext.Provider value={branding}>
       <ThemeProvider theme={theme}>

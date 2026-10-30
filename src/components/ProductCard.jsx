@@ -8,6 +8,7 @@ import { METEOR_HTTP_URL } from '../config';
 import { formatMoney } from '../domain/commerce';
 import AddProductDialog from './AddProductDialog';
 import ProductImageCarousel from './ProductImageCarousel';
+import { useStoreBranding } from './StoreBranding';
 
 const productImagesCache = new Map();
 
@@ -22,10 +23,13 @@ function normalizeImageUrl(value) {
   }
 }
 
-export default function ProductCard({ cartBlocked, cartReady, compact = true, onAdd, onNotify, product, store }) {
+export default function ProductCard({ cartBlocked, cartReady, compact = true, onAdd, onNotify, product, store, preview = false, appearance: appearanceOverride }) {
+  const branding = useStoreBranding();
+  const appearance = appearanceOverride || branding.appearance;
+  const design = appearance.design;
   const cardRef = React.useRef(null);
   const productId = String(product?._id || '');
-  const [isVisible, setIsVisible] = React.useState(() => productImagesCache.has(productId));
+  const [isVisible, setIsVisible] = React.useState(() => preview || productImagesCache.has(productId));
   const [images, setImages] = React.useState(() => {
     if (productImagesCache.has(productId)) return productImagesCache.get(productId);
     const legacyUrl = normalizeImageUrl(product?.imageUrl || product?.urlImagen || product?.imagenUrl || '');
@@ -145,9 +149,9 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
               imageClassName="product-image"
               images={images}
             />
-            {isMadeToOrder ? (
+            {design.showStock && isMadeToOrder ? (
               <Chip className="product-ribbon" icon={<LocalFloristOutlinedIcon />} label="Encargo" size="small" />
-            ) : stock <= 5 ? (
+            ) : design.showStock && stock <= 5 ? (
               <Chip
                 className="product-stock-chip"
                 color={stock === 0 ? 'default' : 'warning'}
@@ -158,12 +162,12 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
           </Box>
           <CardContent className="product-content">
             <Box className="product-card-meta-top">
-              <Typography className="product-store-name" noWrap variant="caption">
+              {design.showStoreName ? <Typography className="product-store-name" noWrap variant="caption">
                 {store?.title || store?.name || 'Comercio'}
-              </Typography>
-              <span className={`product-availability-pill ${statusTone}`}>
+              </Typography> : null}
+              {design.showStock ? <span className={`product-availability-pill ${statusTone}`}>
                 {availabilityLabel}
-              </span>
+              </span> : null}
             </Box>
             <Typography className="product-name" title={productName} variant="subtitle2">
               {productName}
@@ -186,12 +190,12 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
             startIcon={available ? <AddRoundedIcon fontSize="small" /> : undefined}
             variant={available ? 'contained' : 'outlined'}
           >
-            {available ? 'Pedir' : 'Ver'}
+            {available ? design.productButtonLabel || 'Pedir' : 'Ver'}
           </Button>
         </Box>
       </Card>
 
-      <AddProductDialog
+      {!preview ? <AddProductDialog
         adding={adding}
         cartBlocked={cartBlocked}
         cartReady={cartReady}
@@ -201,7 +205,7 @@ export default function ProductCard({ cartBlocked, cartReady, compact = true, on
         open={dialogOpen}
         product={product}
         store={store}
-      />
+      /> : null}
     </>
   );
 }

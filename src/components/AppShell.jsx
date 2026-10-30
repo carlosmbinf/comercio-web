@@ -1,5 +1,5 @@
 import React from 'react';
-import { Avatar, Badge, Box, Button, Container, IconButton, Tooltip, Typography } from '@mui/material';
+import { Avatar, Badge, Box, Button, Container, IconButton, Tooltip, useTheme } from '@mui/material';
 import { NavLink, Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import DarkModeRoundedIcon from '@mui/icons-material/DarkModeRounded';
 import LightModeRoundedIcon from '@mui/icons-material/LightModeRounded';
@@ -12,7 +12,8 @@ import CheckoutWizard from './CheckoutWizard';
 
 import { getCommerceDisplayName } from '../config';
 import { isConfiguredCommerceOwner } from '../domain/empresa';
-import { BrandLogo } from './BrandImage';
+import { StoreAnnouncement, StoreHeader, StoreFooter } from './StoreSiteChrome';
+import { appearanceRootProps } from '../domain/appearance';
 import { useStoreBranding } from './StoreBranding';
 
 const NAV_ITEMS = [
@@ -27,9 +28,10 @@ const displayName = (user) =>
 export default function AppShell({ children, cart, mode, onDismissToast, onToggleMode, storefront, toastMessage, user }) {
   const [cartOpen, setCartOpen] = React.useState(false);
   const { appearance } = useStoreBranding();
+  const theme = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const storeLabel = getCommerceDisplayName(storefront.stores);
+  const storeLabel = appearance.design.siteName || getCommerceDisplayName(storefront.stores);
   const userLabel = displayName(user);
   const cartCount = cart?.items?.length || 0;
   const navItems = isConfiguredCommerceOwner(user, storefront.companyId)
@@ -43,17 +45,9 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
   }, [storeLabel]);
 
   return (
-    <Box className={`app-root ${mode === 'dark' ? 'mode-dark' : 'mode-light'}`}>
-      <Box component="header" className="site-header">
-        <Container maxWidth="xl" className="header-inner">
-          <RouterLink aria-label="Ir al inicio" className="brand-link" to="/">
-            <BrandLogo src={appearance.logo} name={storeLabel} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography className="brand-title" noWrap>{storeLabel}</Typography>
-              <Typography className="brand-caption" noWrap>{`COMPRA LOCAL · ${storeLabel.toLocaleUpperCase('es')}`}</Typography>
-            </Box>
-          </RouterLink>
-
+    <Box className={`app-root mode-${theme.palette.mode}`} {...appearanceRootProps(appearance)}>
+      <StoreAnnouncement appearance={appearance} />
+      <StoreHeader appearance={appearance} storeLabel={storeLabel}>
           <Box className="desktop-nav" component="nav" aria-label="Navegación principal">
             {navItems.map((item) => (
               <Button
@@ -95,19 +89,13 @@ export default function AppShell({ children, cart, mode, onDismissToast, onToggl
               <span className="profile-label">{user ? (userLabel || 'Mi perfil') : 'Iniciar sesión'}</span>
             </Button>
           </Box>
-        </Container>
-      </Box>
+      </StoreHeader>
 
       <Container component="main" className="page-frame" maxWidth="xl" key={location.pathname}>
         <div className="page-enter">{children}</div>
       </Container>
 
-      <Box component="footer" className="site-footer">
-        <Container maxWidth="xl" className="footer-inner">
-          <Box className="footer-brand"><StorefrontRoundedIcon fontSize="small" /> {storeLabel} <span>·</span> COMERCIO</Box>
-          <Typography color="text.secondary" variant="caption">Compra segura, seguimiento claro y atención en un solo lugar.</Typography>
-        </Container>
-      </Box>
+      <StoreFooter appearance={appearance} storeLabel={storeLabel} />
 
       <div aria-live="polite" className={toastMessage ? 'product-toast visible' : 'product-toast'} role="status">
         {toastMessage}

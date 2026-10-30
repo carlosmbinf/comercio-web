@@ -7,6 +7,7 @@ import App from './App';
 import { buildTheme } from './theme';
 import './styles.css';
 import './styles/appearance.css';
+import './styles/customization.css';
 import 'leaflet/dist/leaflet.css';
 
 function readSavedMode() {

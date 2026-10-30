@@ -17,7 +17,7 @@ export function LoginPage() {
   const location = useLocation();
   const { auth, storefront } = useOutletContext();
   const { appearance } = useStoreBranding();
-  const companyName = getCommerceDisplayName(storefront?.stores);
+  const companyName = appearance.design.siteName || getCommerceDisplayName(storefront?.stores);
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);

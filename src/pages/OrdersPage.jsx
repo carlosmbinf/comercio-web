@@ -168,7 +168,7 @@ export function OrdersPage() {
         <Paper className="catalog-empty" elevation={0}>
           <Box className="empty-state-icon"><ShoppingBagOutlinedIcon /></Box>
           <Typography variant="h5">Todavía no tienes pedidos aquí</Typography>
-          <Typography color="text.secondary">Cuando compres productos de {getCommerceDisplayName(storefront.stores)}, podrás seguirlos desde esta página.</Typography>
+          <Typography color="text.secondary">Cuando compres productos de {appearance.design.siteName || getCommerceDisplayName(storefront.stores)}, podrás seguirlos desde esta página.</Typography>
           <Button component={RouterLink} sx={{ mt: 1 }} to="/" variant="contained">Explorar la tienda</Button>
         </Paper>
       ) : null}

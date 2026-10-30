@@ -15,7 +15,7 @@ export const buildTheme = (mode, appearance) => {
   const tokens = appearanceTokens(appearance, mode);
   return createTheme({
     palette: {
-      mode,
+      mode: tokens.dark ? 'dark' : 'light',
       primary: { main: tokens.primary, contrastText: tokens.onPrimary },
       secondary: { main: tokens.secondary, contrastText: tokens.onSecondary },
       success: { main: '#15803d' },
@@ -31,7 +31,7 @@ export const buildTheme = (mode, appearance) => {
     },
     shape: { borderRadius: 18 },
     typography: {
-      fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      fontFamily: tokens.fontFamily,
       h1: { fontSize: 'clamp(2rem, 3.2vw, 2.75rem)', fontWeight: 800, letterSpacing: '-0.045em', lineHeight: 1.12 },
       h2: { fontSize: 'clamp(1.75rem, 2.6vw, 2.375rem)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.15 },
       h3: { fontSize: 'clamp(1.5rem, 2.1vw, 1.875rem)', fontWeight: 800, letterSpacing: '-0.035em', lineHeight: 1.2 },
@@ -48,7 +48,7 @@ export const buildTheme = (mode, appearance) => {
     components: {
       MuiButton: {
         styleOverrides: {
-          root: { borderRadius: 999, minHeight: 44, paddingInline: 18 },
+          root: { borderRadius: tokens.variables['--brand-button-radius'], minHeight: 44, paddingInline: 18 },
         },
       },
       MuiCard: {

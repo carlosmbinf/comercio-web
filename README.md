@@ -48,11 +48,24 @@ El `.env` local no se versiona. Para producción usa `wss://` y HTTPS.
 
 ## Apariencia de cada comercio
 
-La cuenta propietaria encuentra **Modo empresa → Apariencia**. Puede elegir una paleta o colores propios, subir un logo, una portada del catálogo, una imagen del login y una portada independiente para la cabecera de **Mis pedidos**, y cambiar los textos de bienvenida. La vista previa permite revisar tienda, login y pedidos en modo claro y oscuro antes de publicar. Las portadas llevan un velo para mantener el texto legible; quitar una imagen recupera el diseño sin fotografía. Restaurar el diseño original prepara un cambio que también requiere pulsar **Publicar apariencia**.
+La cuenta propietaria encuentra **Modo empresa → Apariencia**. Los ajustes se publican para todos los visitantes y se comparten entre las sucursales de esa empresa:
 
-Los colores de texto y botones se ajustan para mantener contraste AA; el fondo se adapta a un tono suave en cada modo. Las imágenes aceptan JPG, PNG o WebP de hasta 8 MB, se reducen en el navegador y el servidor vuelve a validar, redimensionar y convertir a WebP sin metadatos. Cada imagen persistida tiene un máximo de 250 KB; reemplazarla o quitarla no deja archivos huérfanos.
+- Fondos independientes de página, paneles, tarjetas, header y footer para claro y oscuro; patrones e imágenes de fondo. Los fondos explícitos de página, tarjetas, header y footer conservan el color elegido y adaptan el texto para mantener lectura. Los paneles se armonizan con el contraste general.
+- Tarjetas pequeñas, medianas o grandes, vista inicial compacta o amplia, esquinas, separación, sombras, proporción y encuadre de fotografías. Nombre de sucursal y disponibilidad opcionales, y texto del botón de compra editable. El visitante conserva el selector de densidad del catálogo.
+- Cinco familias tipográficas, forma de botones, ancho de página y espaciado. Las estructuras Catálogo, Boutique y Cercana combinan ajustes que luego se pueden modificar individualmente.
+- Nombre público del sitio, logo y tamaño, frase de marca, tres distribuciones de header, cabecera fija opcional, anuncio superior y hasta seis enlaces propios de navegación. El logo también identifica la pestaña del navegador.
+- Portada clásica, centrada o con imagen separada; altura, encuadre, intensidad del velo, visibilidad e indicadores. Altura independiente de Mis pedidos y login dividido o centrado.
+- Footer compacto, centrado o en columnas, con visibilidad propia, logo, título y descripción opcionales, copyright y hasta doce enlaces ordenables, con opción de abrir otra pestaña.
+- Hasta seis bloques informativos ordenables, antes o después de los productos, con título, texto, estilo y botón opcional para presentar la marca, entregas o servicios.
+- Logo, portadas de catálogo y pedidos, bienvenida del login e imágenes de fondo para página, header y footer.
 
-Se guardan en `COMERCIO_webAppearance`, con un documento por cuenta propietaria, compartido por sus sucursales y consumido únicamente por este cliente. `comercio.webAppearance` publica solo `settings`; `comercio.webAppearance.save(settings)` obtiene el destinatario de la sesión y exige rol EMPRESA, términos aceptados y cuenta no bloqueada. No acepta un ID de otra empresa, CSS libre ni URLs de imágenes.
+La vista previa se actualiza mientras se edita y reutiliza los componentes de cabecera, portada, tarjetas, bloques y footer del sitio. Un marco aislado permite ver los tamaños reales de escritorio y móvil, ampliar la vista y revisar tienda, login, pedidos o footer con sus media queries. Los productos proceden del catálogo público de la propia empresa. Las compras y los enlaces están desactivados dentro de la vista previa. Los borradores se conservan al alternar pestañas del panel; descartar y restaurar requieren publicar para cambiar la tienda visible.
+
+Los colores de texto y botones se ajustan para mantener contraste AA; la base automática conserva su adaptación por modo. Las imágenes aceptan JPG, PNG o WebP de hasta 8 MB, se reducen en el navegador y el servidor vuelve a validar, redimensionar y convertir a WebP sin metadatos. Cada imagen persistida tiene un máximo de 250 KB; reemplazarla o quitarla no deja archivos huérfanos.
+
+Se guardan en `COMERCIO_webAppearance`, con un documento por cuenta propietaria, compartido por sus sucursales y consumido únicamente por este cliente. `comercio.webAppearance` publica solo `settings`; `comercio.webAppearance.save(settings)` obtiene el destinatario de la sesión y exige rol EMPRESA, términos aceptados y cuenta no bloqueada. `settings.design` contiene opciones explícitas, rangos y textos limitados; no acepta un ID de otra empresa, CSS o HTML libre ni URLs de imágenes. Los enlaces admiten HTTP/HTTPS, rutas internas, mailto y tel; se rechazan esquemas ejecutables, credenciales en URLs y direcciones ambiguas.
+
+Los clientes anteriores que omiten `design` o las imágenes nuevas conservan esos datos al guardar. El editor nuevo envía el diseño completo: restaurar y publicar lo restablece explícitamente. La autorización y la colección siguen siendo las existentes; no se modifica la apariencia de la app móvil ni del cliente web legacy.
 
 Para habilitarlo deben actualizarse el backend Meteor (`server/comercioAppearance`) y este cliente. Si no hay una personalización guardada, se usa la identidad predeterminada. Si no puede cargarse la configuración, el escaparate conserva ese diseño y el editor ofrece reintentar sin permitir sobrescribir datos que todavía no se leyeron.
 
