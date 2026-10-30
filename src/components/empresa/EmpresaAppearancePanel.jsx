@@ -142,7 +142,7 @@ export default function EmpresaAppearancePanel({ storefront, notify }) {
 
           <Card className="appearance-section" elevation={0}>
             <Typography variant="h6">09 · Imágenes que cuentan tu historia</Typography>
-            <Typography color="text.secondary" sx={{ mt: 0.75, mb: 2 }} variant="body2">JPG, PNG o WebP, hasta 8 MB. Las optimizamos antes de publicar.</Typography>
+            <Typography color="text.secondary" sx={{ mt: 0.75, mb: 2 }} variant="body2">JPG, PNG o WebP, sin límite fijo de tamaño o resolución. Las optimizamos antes de publicar.</Typography>
             <Stack spacing={2}>
               {IMAGE_SLOTS.map(({ key, title, hint }) => <Box className="appearance-image-field" key={key}>
                 <Box className={`appearance-image-thumb ${key === 'logo' ? 'is-logo' : ''}`}>
